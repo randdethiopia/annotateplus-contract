@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
-import Image from "next/image";
+import { BrandLogo } from "@/components/branding/brand-logo";
 import { Rubik, Allura } from "next/font/google";
+import { formatAgreementDate } from "@/lib/format-date";
 import {
   AGREEMENT_DESCRIPTION,
   AGREEMENT_TITLE,
@@ -28,13 +29,7 @@ function DocHeader() {
           {DOC_HEADER_TITLE}
         </h2>
       </div>
-      <Image
-        src="/src/logo/R&D__Logo_and_Slogan.png"
-        alt={COMPANY_NAME}
-        width={200}
-        height={90}
-        className="h-10 w-auto object-contain flex-shrink-0"
-      />
+      <BrandLogo className="h-10" width={200} height={48} />
     </div>
   );
 }
@@ -80,23 +75,19 @@ export interface ContractDocumentProps {
   contractNumber: string;
   workerName: string;
   signed: boolean;
+  agreementDate?: string;
   signedDate?: string;
 }
 
 export const ContractDocument = forwardRef<HTMLDivElement, ContractDocumentProps>(
-  function ContractDocument({ contractNumber, workerName, signed, signedDate }, ref) {
-    const today = new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(new Date());
-    const dateLabel = signedDate
-      ? new Intl.DateTimeFormat("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }).format(new Date(signedDate))
-      : today;
+  function ContractDocument(
+    { contractNumber, workerName, signed, agreementDate, signedDate },
+    ref
+  ) {
+    const displayDate = formatAgreementDate(
+      agreementDate ?? signedDate ?? new Date().toISOString()
+    );
+    const dateLabel = signedDate ? formatAgreementDate(signedDate) : displayDate;
 
     return (
       <div
@@ -113,7 +104,7 @@ export const ContractDocument = forwardRef<HTMLDivElement, ContractDocumentProps
 
         <div className="text-sm mb-6 space-y-1">
           <p>
-            <span className="font-semibold underline">Date:</span> {today}
+            <span className="font-semibold underline">Date:</span> {displayDate}
           </p>
           <p>
             <span className="font-semibold underline">Contract Number:</span> {contractNumber}
@@ -122,7 +113,7 @@ export const ContractDocument = forwardRef<HTMLDivElement, ContractDocumentProps
 
         <p className="text-slate-600 leading-relaxed mb-10">
           This Task-Based Data annotation Worker Agreement (&quot;Agreement&quot;) is made and
-          entered into as of {today}, by and between:
+          entered into as of {displayDate}, by and between:
           <br />
           <span className="font-semibold underline">{COMPANY_NAME}</span> (
           <span className="italic">R&D Group</span>) (hereinafter referred to as the

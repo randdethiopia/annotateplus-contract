@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiBlob } from "@/lib/backend/client";
+import { apiBlob } from "@/lib/api/client";
 
 export function useBlobUrl(path: string | null, token?: string) {
   const [url, setUrl] = useState<string | null>(null);

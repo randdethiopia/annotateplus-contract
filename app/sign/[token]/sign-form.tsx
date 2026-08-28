@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSubmitWorkerContract } from "@/lib/api/worker";
-import { ApiError } from "@/lib/backend/client";
+import { ApiError } from "@/lib/api/client";
+import type { WorkerSubmittedData } from "@/types/backend";
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MIN_DIMENSION = 300;
@@ -29,11 +30,24 @@ function checkImageDimensions(file: File): Promise<boolean> {
   });
 }
 
-export function SignForm({ token }: { token: string }) {
+export interface SignFormProps {
+  token: string;
+  initialValues?: Partial<WorkerSubmittedData>;
+  requireNewPhotos?: boolean;
+  agreedToTerms: boolean;
+}
+
+export function SignForm({
+  token,
+  initialValues,
+  requireNewPhotos = false,
+  agreedToTerms,
+}: SignFormProps) {
   const [fullNameEnglish, setFullNameEnglish] = useState("");
   const [fullNameAmharic, setFullNameAmharic] = useState("");
   const [residenceLocation, setResidenceLocation] = useState("");
   const [bankName, setBankName] = useState("");
+  const [bankAccountHolderName, setBankAccountHolderName] = useState("");
   const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [faydaFront, setFaydaFront] = useState<File | null>(null);
   const [faydaBack, setFaydaBack] = useState<File | null>(null);
@@ -41,6 +55,17 @@ export function SignForm({ token }: { token: string }) {
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
 
   const { mutate: submit, isPending } = useSubmitWorkerContract(token);
+
+  useEffect(() => {
+    if (!initialValues) return;
+    if (initialValues.fullNameEnglish) setFullNameEnglish(initialValues.fullNameEnglish);
+    if (initialValues.fullNameAmharic) setFullNameAmharic(initialValues.fullNameAmharic);
+    if (initialValues.residenceLocation) setResidenceLocation(initialValues.residenceLocation);
+    if (initialValues.bankName) setBankName(initialValues.bankName);
+    if (initialValues.bankAccountHolderName)
+      setBankAccountHolderName(initialValues.bankAccountHolderName);
+    if (initialValues.bankAccountNumber) setBankAccountNumber(initialValues.bankAccountNumber);
+  }, [initialValues]);
 
   async function handleImageChange(
     event: ChangeEvent<HTMLInputElement>,
@@ -72,6 +97,10 @@ export function SignForm({ token }: { token: string }) {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!agreedToTerms) {
+      toast.error("Please confirm you have read and agree to the agreement.");
+      return;
+    }
     if (!faydaFront || !faydaBack) {
       toast.error("Please attach both sides of your ID.");
       return;
@@ -83,6 +112,7 @@ export function SignForm({ token }: { token: string }) {
         fullNameAmharic: fullNameAmharic || undefined,
         residenceLocation,
         bankName,
+        bankAccountHolderName,
         bankAccountNumber,
         faydaFront,
         faydaBack,
@@ -123,7 +153,9 @@ export function SignForm({ token }: { token: string }) {
       <div>
         <h2 className="text-lg font-bold text-slate-900">Your details</h2>
         <p className="text-sm text-slate-500">
-          Confirm your information and attach both sides of your ID to sign.
+          {requireNewPhotos
+            ? "Update your information and re-upload clear photos of both sides of your Fayda ID."
+            : "Confirm your information and attach both sides of your ID to sign."}
         </p>
       </div>
 
@@ -151,7 +183,7 @@ export function SignForm({ token }: { token: string }) {
           />
         </div>
         <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="residenceLocation">Residence location</Label>
+          <Label htmlFor="residenceLocation">Current residence</Label>
           <Input
             id="residenceLocation"
             value={residenceLocation}
@@ -172,10 +204,24 @@ export function SignForm({ token }: { token: string }) {
             onChange={(e) => setBankName(e.target.value)}
             required
             minLength={2}
+            placeholder="e.g. Commercial Bank of Ethiopia"
           />
           {fieldErrors.bankName && <p className="text-xs text-red-500">{fieldErrors.bankName}</p>}
         </div>
         <div className="space-y-1.5">
+          <Label htmlFor="bankAccountHolderName">Account holder name</Label>
+          <Input
+            id="bankAccountHolderName"
+            value={bankAccountHolderName}
+            onChange={(e) => setBankAccountHolderName(e.target.value)}
+            required
+            minLength={2}
+          />
+          {fieldErrors.bankAccountHolderName && (
+            <p className="text-xs text-red-500">{fieldErrors.bankAccountHolderName}</p>
+          )}
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="bankAccountNumber">Bank account number</Label>
           <Input
             id="bankAccountNumber"
@@ -206,7 +252,7 @@ export function SignForm({ token }: { token: string }) {
         <p className="text-sm text-amber-600">Please wait {retryAfter} seconds before trying again.</p>
       )}
 
-      <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
+      <Button type="submit" disabled={isPending || !agreedToTerms} className="w-full sm:w-auto">
         {isPending && <Loader2 className="size-4 animate-spin" />}
         Sign &amp; Submit
       </Button>
@@ -241,16 +287,17 @@ function IdImageField({
       <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 hover:bg-slate-100">
         {previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewUrl} alt={label} className="max-h-32 rounded object-contain" />
+          <img src={previewUrl} alt={label} className="max-h-48 rounded object-contain" />
         ) : (
           <>
             <ImagePlus className="size-6" />
-            <span>Tap to attach photo</span>
+            <span>Tap to take a photo or choose from gallery</span>
           </>
         )}
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp"
+          capture="environment"
           className="hidden"
           onChange={handleChange}
         />

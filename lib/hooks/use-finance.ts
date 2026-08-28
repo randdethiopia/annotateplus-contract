@@ -1,0 +1,92 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { financeApi, type FinanceContractsParams } from "@/lib/api/finance.api";
+import type { CreateContractFormInput } from "@/lib/validations/contract.schema";
+import type { ContractStatus } from "@/types/backend";
+
+export function useFinanceContracts(token: string, params: FinanceContractsParams) {
+  const filters = {
+    status: params.status,
+    search: params.search?.trim() || undefined,
+    page: params.page,
+    limit: params.limit,
+  };
+
+  return useQuery({
+    queryKey: ["finance-contracts", filters],
+    queryFn: () => financeApi.getContracts(token, params),
+    enabled: !!token,
+  });
+}
+
+export function useFinanceKpis(token: string) {
+  const signedCountQuery = useQuery({
+    queryKey: ["finance-kpis", "signed-count"],
+    queryFn: () =>
+      financeApi.getContracts(token, { status: "SIGNED", page: 1, limit: 1 }),
+    enabled: !!token,
+  });
+
+  const pendingReviewQuery = useQuery({
+    queryKey: ["finance-kpis", "pending-review"],
+    queryFn: () =>
+      financeApi.getContracts(token, { status: "PENDING_REVIEW", page: 1, limit: 1 }),
+    enabled: !!token,
+  });
+
+  const draftsQuery = useQuery({
+    queryKey: ["finance-kpis", "drafts"],
+    queryFn: () => financeApi.getContracts(token, { status: "DRAFT", page: 1, limit: 1 }),
+    enabled: !!token,
+  });
+
+  const signedPayoutQuery = useQuery({
+    queryKey: ["finance-kpis", "signed-payout"],
+    queryFn: () =>
+      financeApi.getContracts(token, { status: "SIGNED", page: 1, limit: 100 }),
+    enabled: !!token,
+  });
+
+  const payoutItems = signedPayoutQuery.data?.items ?? [];
+  const payoutTotal = signedPayoutQuery.data?.total ?? 0;
+  const payoutSum = payoutItems.reduce((sum, item) => sum + item.ratePerTaskEtb, 0);
+  const payoutHasMore = payoutTotal > payoutItems.length;
+
+  return {
+    totalSigned: signedCountQuery.data?.total ?? 0,
+    pendingReview: pendingReviewQuery.data?.total ?? 0,
+    activeDrafts: draftsQuery.data?.total ?? 0,
+    payoutReadyEtb: payoutSum,
+    payoutHasMore,
+    isLoading:
+      signedCountQuery.isLoading ||
+      pendingReviewQuery.isLoading ||
+      draftsQuery.isLoading ||
+      signedPayoutQuery.isLoading,
+  };
+}
+
+export function useCreateContract(token: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateContractFormInput) => financeApi.createContract(token, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-kpis"] });
+    },
+  });
+}
+
+export function useDownloadFinanceDocument(token: string) {
+  return useMutation({
+    mutationFn: ({ id, contractNumber }: { id: string; contractNumber: string }) =>
+      financeApi.downloadSealedDocument(token, id, contractNumber),
+  });
+}
+
+export function useExportPayrollCsv(token: string) {
+  return useMutation({
+    mutationFn: () => financeApi.exportPayrollCsv(token),
+  });
+}

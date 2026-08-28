@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { STATUS_STYLE } from "@/components/contracts/status-badge";
+import { STATUS_STYLE } from "@/components/agar/status-badge";
 import type { ContractStatus } from "@/types/backend";
 
 export function StatusSummary({

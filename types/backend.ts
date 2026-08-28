@@ -78,16 +78,33 @@ export interface LoginResponseData {
 // Worker portal
 // ============================================================
 
+export interface WorkerSubmittedData {
+  fullNameEnglish: string;
+  fullNameAmharic?: string;
+  residenceLocation: string;
+  bankName: string;
+  bankAccountHolderName: string;
+  bankAccountNumber: string;
+}
+
+export interface WorkerRejectionFeedback {
+  category: RejectionCategory;
+  reasonEnglish: string;
+  reasonAmharic?: string;
+}
+
 export interface WorkerContractViewDto {
   contractNumber: string;
   status: ContractStatus;
   roleTitle: string;
   ratePerTaskEtb: number;
   agreementDate: string;
-  expiresAt?: string;
+  expiresAt: string;
   documentUrl: string;
   currentAttemptNumber: number;
   maxAttempts: number;
+  rejectionFeedback?: WorkerRejectionFeedback;
+  submittedData?: WorkerSubmittedData;
 }
 
 export interface WorkerSubmitPayload {
@@ -95,6 +112,7 @@ export interface WorkerSubmitPayload {
   fullNameAmharic?: string;
   residenceLocation: string;
   bankName: string;
+  bankAccountHolderName: string;
   bankAccountNumber: string;
   faydaFront: File;
   faydaBack: File;
@@ -118,6 +136,7 @@ export interface ContractListItemDto {
   currentAttemptNumber: number;
   bankAccountMasked?: string;
   bankName?: string;
+  bankAccountHolderName?: string;
   submittedAt?: string;
   createdAt: string;
 }
@@ -131,6 +150,7 @@ export interface AttemptSummaryDto {
     fullNameAmharic?: string;
     residenceLocation: string;
     bankName: string;
+    bankAccountHolderName: string;
     bankAccountNumber: string;
   };
   faydaFrontSha256: string;
@@ -143,18 +163,37 @@ export interface AttemptSummaryDto {
   createdAt: string;
 }
 
+export interface ContractDossierWorkerProfile {
+  bankAccountHolderName?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+}
+
+export interface ContractDossierContract {
+  workerProfile?: ContractDossierWorkerProfile;
+}
+
 export interface ContractDossierDto {
   contractId: string;
   contractNumber: string;
   status: ContractStatus;
   roleTitle: string;
   ratePerTaskEtb: number;
+  agreementDate: string;
   phone: string;
   currentAttemptNumber: number;
   maxAttempts: number;
   remainingAttempts: number;
   attempts: AttemptSummaryDto[];
   idCardUrls: { front: string; back: string };
+  contract?: ContractDossierContract;
+  submittedData?: Pick<
+    WorkerSubmittedData,
+    "bankName" | "bankAccountHolderName" | "bankAccountNumber"
+  >;
+  bankName?: string;
+  bankAccountHolderName?: string;
+  bankAccountNumber?: string;
   approvedBy?: string;
   approvedAt?: string;
 }

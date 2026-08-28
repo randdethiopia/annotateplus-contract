@@ -1,4 +1,4 @@
-import { ApiError } from "@/lib/backend/client";
+import { ApiError } from "@/lib/api/client";
 
 /**
  * Surfaces the real reason an action failed instead of a generic message —

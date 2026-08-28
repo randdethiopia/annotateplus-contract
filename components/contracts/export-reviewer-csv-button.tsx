@@ -3,7 +3,7 @@
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { downloadCsv } from "@/lib/csv";
-import { STATUS_STYLE } from "@/components/contracts/status-badge";
+import { STATUS_STYLE } from "@/components/agar/status-badge";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import type { ContractListItemDto } from "@/types/backend";
 

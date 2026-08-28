@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, apiBlob } from "@/lib/backend/client";
+import { api, apiBlob } from "@/lib/api/client";
 import { saveBlob } from "@/lib/save-blob";
 import type {
   WorkerContractViewDto,
@@ -17,7 +17,7 @@ export function useWorkerContract(token: string) {
     retry: false,
     // Poll politely only while the worker is waiting on a human decision.
     refetchInterval: (query) =>
-      query.state.data?.status === "PENDING_REVIEW" ? 20_000 : false,
+      query.state.data?.status === "PENDING_REVIEW" ? 15_000 : false,
   });
 }
 
@@ -30,6 +30,7 @@ export function useSubmitWorkerContract(token: string) {
       if (payload.fullNameAmharic) fd.append("fullNameAmharic", payload.fullNameAmharic);
       fd.append("residenceLocation", payload.residenceLocation);
       fd.append("bankName", payload.bankName);
+      fd.append("bankAccountHolderName", payload.bankAccountHolderName);
       fd.append("bankAccountNumber", payload.bankAccountNumber);
       fd.append("faydaFront", payload.faydaFront);
       fd.append("faydaBack", payload.faydaBack);

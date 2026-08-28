@@ -10,12 +10,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { StatusBadge } from "@/components/contracts/status-badge";
+import { StatusBadge } from "@/components/agar/status-badge";
 import { SignedBanner } from "@/components/contracts/signed-banner";
 import { ContractDocument } from "@/components/contracts/contract-document";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useDownloadFinanceDocument } from "@/lib/api/finance";
+import { useDownloadFinanceDocument } from "@/lib/hooks/use-finance";
 import { canFinanceDownload } from "@/lib/status-actions";
+import { formatAgreementDate, formatSignedDateTime } from "@/lib/format-date";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import { describeError } from "@/lib/describe-error";
 import type { FinanceContractListItemDto } from "@/types/backend";
@@ -89,14 +90,14 @@ export function FinanceDetailSheet({
                 <div>
                   <p className="text-slate-500">Agreement date</p>
                   <p className="font-medium text-slate-900">
-                    {new Date(contract.agreementDate).toLocaleDateString()}
+                    {formatAgreementDate(contract.agreementDate)}
                   </p>
                 </div>
                 {contract.signedAt && (
                   <div>
                     <p className="text-slate-500">Signed at</p>
                     <p className="font-medium text-slate-900">
-                      {new Date(contract.signedAt).toLocaleString()}
+                      {formatSignedDateTime(contract.signedAt)}
                     </p>
                   </div>
                 )}
@@ -119,6 +120,7 @@ export function FinanceDetailSheet({
                   contractNumber={contract.contractNumber}
                   workerName={contract.workerName ?? "________________________"}
                   signed={contract.status === "SIGNED"}
+                  agreementDate={contract.agreementDate}
                   signedDate={contract.signedAt}
                 />
               </div>
