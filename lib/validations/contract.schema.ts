@@ -14,6 +14,10 @@ export const createContractSchema = z
     contractPdf: z.instanceof(File, { message: "Please attach a contract agreement PDF" }),
     contractNumber: z.string().trim().min(3, "Contract number is required"),
     phone: z.string().trim().min(9, "Please enter a valid phone number (+251... or 09...)"),
+    ratePerTaskEtb: z
+      .number({ error: "Rate must be a number" })
+      .positive("Rate must be greater than 0"),
+    expiresInHours: z.number().int().positive().optional(),
   })
   .refine((f) => f.contractPdf.size <= MAX_PDF_BYTES, "PDF must be under 10MB")
   .refine(

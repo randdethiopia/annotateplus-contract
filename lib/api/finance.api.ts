@@ -1,4 +1,5 @@
 import { api, apiBlob } from "@/lib/api/client";
+import { uploadViaPresign } from "@/lib/api/upload";
 import { saveBlob } from "@/lib/save-blob";
 import type {
   ContractStatus,
@@ -15,7 +16,9 @@ export interface FinanceContractsParams {
   limit: number;
 }
 
-function toPdfUpload(file: File): File {
+const DEFAULT_EXPIRES_IN_HOURS = 168;
+
+function normalizePdfFile(file: File): File {
   const name = file.name.toLowerCase().endsWith(".pdf") ? file.name : `${file.name}.pdf`;
   if (file.type === "application/pdf" && file.name === name) return file;
   return new File([file], name, { type: "application/pdf" });
@@ -40,16 +43,23 @@ export const financeApi = {
     return api<Paginated<FinanceContractListItemDto>>(`/finance/contracts?${query}`, { token });
   },
 
-  createContract(token: string, input: CreateContractFormInput): Promise<CreateContractResponseData> {
-    const fd = new FormData();
-    const contractPdf = toPdfUpload(input.contractPdf);
-    fd.append("phone", input.phone.trim());
-    fd.append("contractPdf", contractPdf, contractPdf.name);
-    fd.append("contractNumber", input.contractNumber);
+  async createContract(
+    token: string,
+    input: CreateContractFormInput
+  ): Promise<CreateContractResponseData> {
+    const contractPdf = normalizePdfFile(input.contractPdf);
+    const contractPdfUrl = await uploadViaPresign(token, contractPdf);
+
     return api<CreateContractResponseData>("/finance/contracts", {
       method: "POST",
       token,
-      body: fd,
+      body: {
+        phone: input.phone.trim(),
+        contractNumber: input.contractNumber,
+        ratePerTaskEtb: input.ratePerTaskEtb,
+        expiresInHours: input.expiresInHours ?? DEFAULT_EXPIRES_IN_HOURS,
+        contractPdfUrl,
+      },
     });
   },
 

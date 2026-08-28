@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiBlob } from "@/lib/api/client";
+import { uploadViaPresign } from "@/lib/api/upload";
 import { saveBlob } from "@/lib/save-blob";
 import type {
   WorkerContractViewDto,
@@ -24,20 +25,25 @@ export function useWorkerContract(token: string) {
 export function useSubmitWorkerContract(token: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: WorkerSubmitPayload) => {
-      const fd = new FormData();
-      fd.append("fullNameEnglish", payload.fullNameEnglish);
-      if (payload.fullNameAmharic) fd.append("fullNameAmharic", payload.fullNameAmharic);
-      fd.append("residenceLocation", payload.residenceLocation);
-      fd.append("bankName", payload.bankName);
-      fd.append("bankAccountHolderName", payload.bankAccountHolderName);
-      fd.append("bankAccountNumber", payload.bankAccountNumber);
-      fd.append("faydaFront", payload.faydaFront);
-      fd.append("faydaBack", payload.faydaBack);
+    mutationFn: async (payload: WorkerSubmitPayload) => {
+      const [faydaFrontUrl, faydaBackUrl] = await Promise.all([
+        uploadViaPresign(token, payload.faydaFront),
+        uploadViaPresign(token, payload.faydaBack),
+      ]);
+
       return api<WorkerSubmitResponseData>("/worker/me/submit", {
         method: "POST",
         token,
-        body: fd,
+        body: {
+          fullNameEnglish: payload.fullNameEnglish,
+          fullNameAmharic: payload.fullNameAmharic,
+          residenceLocation: payload.residenceLocation,
+          bankName: payload.bankName,
+          bankAccountHolderName: payload.bankAccountHolderName,
+          bankAccountNumber: payload.bankAccountNumber,
+          faydaFrontUrl,
+          faydaBackUrl,
+        },
       });
     },
     onSuccess: (data) => {

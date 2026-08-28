@@ -27,6 +27,7 @@ import {
 import type { CreateContractResponseData } from "@/types/backend";
 
 const DEFAULT_CONTRACT_NUMBER = "R&D/EOC/InnC/0001/26";
+const DEFAULT_RATE_PER_TASK_ETB = 100;
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -69,6 +70,7 @@ export function CreateContractModal() {
     defaultValues: {
       contractNumber: DEFAULT_CONTRACT_NUMBER,
       phone: "",
+      ratePerTaskEtb: DEFAULT_RATE_PER_TASK_ETB,
       contractPdf: undefined as unknown as File,
     },
   });
@@ -80,6 +82,7 @@ export function CreateContractModal() {
     reset({
       contractNumber: DEFAULT_CONTRACT_NUMBER,
       phone: "",
+      ratePerTaskEtb: DEFAULT_RATE_PER_TASK_ETB,
       contractPdf: undefined as unknown as File,
     });
     setResult(null);
@@ -265,6 +268,20 @@ export function CreateContractModal() {
                 />
                 {errors.phone && (
                   <p className="text-sm text-red-500">{errors.phone.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ratePerTaskEtb">Rate per task (ETB)</Label>
+                <Input
+                  id="ratePerTaskEtb"
+                  type="number"
+                  min={1}
+                  step={1}
+                  className="h-11"
+                  {...register("ratePerTaskEtb", { valueAsNumber: true })}
+                />
+                {errors.ratePerTaskEtb && (
+                  <p className="text-sm text-red-500">{errors.ratePerTaskEtb.message}</p>
                 )}
               </div>
             </div>

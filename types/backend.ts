@@ -56,6 +56,20 @@ export interface Paginated<T> {
 }
 
 // ============================================================
+// Upload (presigned S3)
+// ============================================================
+
+export interface PresignedUploadResponseData {
+  uploadUrl: string;
+  key: string;
+  filename: string;
+  contentType: string;
+  method: "PUT";
+  headers: Record<string, string>;
+  expiresIn: number;
+}
+
+// ============================================================
 // Auth
 // ============================================================
 
@@ -107,6 +121,7 @@ export interface WorkerContractViewDto {
   submittedData?: WorkerSubmittedData;
 }
 
+/** Form-layer payload — files are uploaded to S3 before the JSON submit call. */
 export interface WorkerSubmitPayload {
   fullNameEnglish: string;
   fullNameAmharic?: string;
@@ -116,6 +131,17 @@ export interface WorkerSubmitPayload {
   bankAccountNumber: string;
   faydaFront: File;
   faydaBack: File;
+}
+
+export interface WorkerSubmitRequestBody {
+  fullNameEnglish: string;
+  fullNameAmharic?: string;
+  residenceLocation: string;
+  bankName: string;
+  bankAccountHolderName: string;
+  bankAccountNumber: string;
+  faydaFrontUrl: string;
+  faydaBackUrl: string;
 }
 
 export interface WorkerSubmitResponseData {
@@ -230,6 +256,14 @@ export interface RetrySealingResponseData {
 // ============================================================
 // Finance
 // ============================================================
+
+export interface CreateContractRequestBody {
+  phone: string;
+  contractNumber: string;
+  ratePerTaskEtb: number;
+  expiresInHours: number;
+  contractPdfUrl: string;
+}
 
 export interface CreateContractResponseData {
   contractId: string;
