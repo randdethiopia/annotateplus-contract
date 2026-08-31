@@ -147,12 +147,19 @@ export function IdPhotoField({
         )}
       </div>
 
+      {/*
+        Deliberately no `capture` attribute. Setting it pins iOS Safari and
+        Android Chrome straight to the camera, so a candidate who already
+        photographed their Fayda ID — or received it from someone else — cannot
+        reach it, despite the dropzone offering the gallery. `accept` alone still
+        narrows the OS sheet to photos while keeping Camera, Photo Library and
+        Files all reachable.
+      */}
       <input
         ref={inputRef}
         id={id}
         type="file"
         accept={ACCEPTED_IMAGE_TYPES.join(",")}
-        capture="environment"
         className="sr-only"
         disabled={disabled}
         aria-invalid={!!shownError}
