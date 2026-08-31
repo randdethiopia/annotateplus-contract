@@ -261,19 +261,27 @@ export interface RetrySealingResponseData {
 
 export interface CreateContractRequestBody {
   phone: string;
-  contractNumber: string;
-  ratePerTaskEtb: number;
-  expiresInHours: number;
-  contractPdfUrl: string;
+  /** Id of a pre-vaulted agreement template; supplies the rate and clauses. */
+  templateId: string;
 }
+
+/** AfroMessage dispatch outcome for the invitation SMS. */
+export type SmsDispatchStatus = "SENT" | "QUEUED" | "FAILED";
 
 export interface CreateContractResponseData {
   contractId: string;
+  /** Assigned by the backend at issuance — never supplied by the client. */
   contractNumber: string;
   status: "INVITED";
   workerAccessToken: string;
   inviteLink: string;
   expiresAt: string;
+  /**
+   * Absent on backends that dispatch the SMS out of band, so the UI must fall
+   * back to neutral copy rather than claiming a delivery it cannot confirm.
+   */
+  smsStatus?: SmsDispatchStatus;
+  smsSentAt?: string;
 }
 
 export interface FinanceContractListItemDto {

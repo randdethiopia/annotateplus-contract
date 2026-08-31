@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, CheckCircle2, Copy, FileText, Loader2, Plus, Trash2 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { CheckCircle2, FileText, Loader2, Plus } from "lucide-react";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,34 +15,67 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CopyValueButton } from "@/components/contracts/copy-value-button";
+import { Field } from "@/components/system/field";
 import { useAuth } from "@/lib/auth/auth-context";
+import {
+  CONTRACT_TEMPLATES,
+  DEFAULT_TEMPLATE_ID,
+  type ContractTemplate,
+} from "@/lib/contract-templates";
 import { useCreateContract } from "@/lib/hooks/use-finance";
 import { describeError } from "@/lib/describe-error";
 import {
   createContractSchema,
-  type CreateContractFormInput,
+  type CreateContractFormValues,
+  type CreateContractInput,
 } from "@/lib/validations/contract.schema";
-import { cn } from "@/lib/utils";
-import type { CreateContractResponseData } from "@/types/backend";
+import type { CreateContractResponseData, SmsDispatchStatus } from "@/types/backend";
 
-const DEFAULT_CONTRACT_NUMBER = "R&D/EOC/InnC/0001/26";
-const DEFAULT_RATE_PER_TASK_ETB = 100;
+const DEFAULTS: CreateContractFormValues = { templateId: DEFAULT_TEMPLATE_ID, phone: "" };
 
-const LABEL = "text-xs font-semibold text-slate-700";
-const CONTROL =
-  "h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-900/10 focus:outline-none";
-const ERROR_TEXT = "text-destructive text-xs font-medium";
+/**
+ * The response omits `smsStatus` when the backend dispatches out of band, so
+ * the fallback states the request was made rather than asserting delivery —
+ * finance decides from this whether the backup link needs sharing.
+ */
+const SMS_STATUS: Record<SmsDispatchStatus, { label: string; className: string }> = {
+  SENT: { label: "Delivered to AfroMessage", className: "bg-emerald-100 text-emerald-800" },
+  QUEUED: { label: "Queued for dispatch", className: "bg-amber-100 text-amber-900" },
+  FAILED: {
+    label: "Dispatch failed — share the backup link below",
+    className: "bg-destructive-soft text-destructive",
+  },
+};
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function normalizePdfFile(file: File): File {
-  const name = file.name.toLowerCase().endsWith(".pdf") ? file.name : `${file.name}.pdf`;
-  if (file.type === "application/pdf" && file.name === name) return file;
-  return new File([file], name, { type: "application/pdf" });
+/**
+ * Rendered both in the select trigger and in each option, so the two never
+ * drift. Spans only — Radix clones this into the trigger, where a div is
+ * invalid inside the value's span.
+ */
+function TemplateSummary({ template }: { template: ContractTemplate }) {
+  return (
+    <span className="flex min-w-0 flex-1 items-start gap-2.5">
+      <FileText className="mt-0.5 size-4 shrink-0" aria-hidden />
+      <span className="flex min-w-0 flex-col items-start gap-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{template.title}</span>
+          <Badge variant="secondary">Official Active Template</Badge>
+        </span>
+        <span className="text-muted-foreground text-xs leading-snug">
+          {template.description}
+        </span>
+      </span>
+    </span>
+  );
 }
 
 function buildInviteLink(invitePath: string): string {
@@ -55,106 +89,64 @@ export function CreateContractDialog() {
   const { token } = useAuth();
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<CreateContractResponseData | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // The response does not echo the phone back and `reset()` clears the field,
+  // so the recipient shown on the success panel is captured at submit time.
+  const [issuedPhone, setIssuedPhone] = useState("");
 
   const { mutate: createContract, isPending } = useCreateContract(token ?? "");
 
   const {
+    control,
     register,
     handleSubmit,
-    setValue,
-    watch,
     reset,
+    setFocus,
     formState: { errors },
-  } = useForm<CreateContractFormInput>({
+  } = useForm<CreateContractFormValues, unknown, CreateContractInput>({
     resolver: zodResolver(createContractSchema),
-    defaultValues: {
-      contractNumber: DEFAULT_CONTRACT_NUMBER,
-      phone: "",
-      ratePerTaskEtb: DEFAULT_RATE_PER_TASK_ETB,
-      contractPdf: undefined as unknown as File,
-    },
+    defaultValues: DEFAULTS,
   });
 
-  const contractPdf = watch("contractPdf");
+  // useWatch, not watch(): watch() returns a function the React Compiler cannot
+  // memoize, which opts the component out of auto-memoization.
+  const templateId = useWatch({ control, name: "templateId" });
+  const selectedTemplate =
+    CONTRACT_TEMPLATES.find((t) => t.id === templateId) ?? CONTRACT_TEMPLATES[0];
 
-  function resetDialog() {
-    setOpen(false);
-    reset({
-      contractNumber: DEFAULT_CONTRACT_NUMBER,
-      phone: "",
-      ratePerTaskEtb: DEFAULT_RATE_PER_TASK_ETB,
-      contractPdf: undefined as unknown as File,
-    });
+  function clearForm() {
+    reset(DEFAULTS);
     setResult(null);
-    setCopied(false);
-    setIsDragging(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setIssuedPhone("");
   }
 
-  function selectPdf(file: File) {
-    setValue("contractPdf", normalizePdfFile(file), { shouldValidate: true });
+  function closeDialog() {
+    setOpen(false);
+    clearForm();
   }
 
-  function clearPdf() {
-    setValue("contractPdf", undefined as unknown as File, { shouldValidate: true });
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file) selectPdf(file);
-  }
-
-  function handleDragOver(event: DragEvent<HTMLLabelElement>) {
-    event.preventDefault();
-    setIsDragging(true);
-  }
-
-  function handleDragLeave(event: DragEvent<HTMLLabelElement>) {
-    event.preventDefault();
-    setIsDragging(false);
-  }
-
-  function handleDrop(event: DragEvent<HTMLLabelElement>) {
-    event.preventDefault();
-    setIsDragging(false);
-    const file = event.dataTransfer.files?.[0];
-    if (file) selectPdf(file);
-  }
-
-  function onSubmit(values: CreateContractFormInput) {
-    createContract(values, {
-      onSuccess: (data) => setResult(data),
-      onError: (err) => {
-        console.error("Create contract failed", err);
-        toast.error(describeError(err, "Could not create contract"));
-      },
-    });
+  function onSubmit(values: CreateContractInput) {
+    setIssuedPhone(values.phone);
+    createContract(
+      { phone: values.phone, templateId: values.templateId || DEFAULT_TEMPLATE_ID },
+      {
+        onSuccess: (data) => setResult(data),
+        onError: (err) => {
+          console.error("Create contract failed", err);
+          toast.error(describeError(err, "Could not issue contract"));
+        },
+      }
+    );
   }
 
   const inviteLink = result ? buildInviteLink(result.inviteLink) : "";
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
-      toast.success("Link copied");
-    } catch {
-      toast.error("Could not copy — your browser blocked clipboard access.");
-    }
-  }
-
-  const hasPdf = contractPdf instanceof File && contractPdf.size > 0;
+  const smsStatus = result?.smsStatus ? SMS_STATUS[result.smsStatus] : null;
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
         if (next) setOpen(true);
-        else resetDialog();
+        else closeDialog();
       }}
     >
       <DialogTrigger asChild>
@@ -171,14 +163,24 @@ export function CreateContractDialog() {
         unreachable — there was nothing to scroll. Capping the height without
         giving the middle its own scroll would clip instead, so both are needed.
       */}
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+      <DialogContent
+        className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+        onOpenAutoFocus={(event) => {
+          // Radix focuses the first tabbable node — the template trigger — so a
+          // bare autoFocus on the phone input is silently ignored. The template
+          // is already correct by default; the phone is what needs typing.
+          if (result) return;
+          event.preventDefault();
+          setFocus("phone");
+        }}
+      >
         {result ? (
           <>
-            <DialogHeader className="shrink-0 border-b border-slate-100 px-6 pt-6 pb-4">
-              <DialogTitle className="text-lg font-semibold text-slate-900">
-                Contract issued &amp; SMS dispatched
+            <DialogHeader className="shrink-0 border-b px-6 pt-6 pb-4">
+              <DialogTitle className="text-lg font-semibold">
+                Contract Issued &amp; SMS Dispatched
               </DialogTitle>
-              <DialogDescription className="mt-0.5 text-xs text-slate-500">
+              <DialogDescription className="text-muted-foreground mt-0.5 text-xs">
                 The worker has been sent their signing link by SMS.
               </DialogDescription>
             </DialogHeader>
@@ -186,205 +188,123 @@ export function CreateContractDialog() {
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
               <div className="flex items-start gap-2.5 rounded-xl bg-emerald-50 px-3.5 py-3 text-sm text-emerald-900">
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
-                <span>
-                  An invitation SMS with the signing link has been sent to the worker&apos;s
-                  phone.
-                </span>
+                <div className="min-w-0 space-y-2">
+                  <p>
+                    Contract{" "}
+                    <span className="font-mono font-medium">{result.contractNumber}</span> was
+                    issued to <span className="tabular font-medium">{issuedPhone}</span>.
+                  </p>
+                  {smsStatus ? (
+                    <Badge className={smsStatus.className}>{smsStatus.label}</Badge>
+                  ) : (
+                    <Badge variant="secondary">Dispatch requested</Badge>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium">Contract number</p>
+                <div className="bg-muted flex items-center gap-2 rounded-lg px-3 py-2.5">
+                  <span className="min-w-0 flex-1 truncate font-mono text-xs">
+                    {result.contractNumber}
+                  </span>
+                  <CopyValueButton value={result.contractNumber} label="Contract number" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
                 <div>
-                  <p className={LABEL}>Backup sharing link</p>
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="text-sm font-medium">Backup sharing link</p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
                     Optional — share directly via Telegram, WhatsApp, or email if the SMS
                     doesn&apos;t arrive.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5">
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-700">
-                    {inviteLink}
-                  </span>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label="Copy invite link"
-                    onClick={handleCopy}
-                  >
-                    {copied ? (
-                      <Check className="size-4 text-emerald-600" />
-                    ) : (
-                      <Copy className="size-4" />
-                    )}
-                  </Button>
+                <div className="bg-muted flex items-center gap-2 rounded-lg px-3 py-2.5">
+                  <span className="min-w-0 flex-1 truncate font-mono text-xs">{inviteLink}</span>
+                  <CopyValueButton value={inviteLink} label="Invite link" />
                 </div>
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
-              <Button type="button" onClick={resetDialog}>
+            <div className="bg-muted/40 flex shrink-0 items-center justify-end gap-3 border-t px-6 py-4">
+              <Button type="button" variant="ghost" onClick={clearForm}>
+                Issue Another
+              </Button>
+              <Button type="button" className="h-11" onClick={closeDialog}>
                 Done
               </Button>
             </div>
           </>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-col">
-            <DialogHeader className="shrink-0 border-b border-slate-100 px-6 pt-6 pb-4">
-              <DialogTitle className="text-lg font-semibold text-slate-900">
-                Issue New Contract
-              </DialogTitle>
-              <DialogDescription className="mt-0.5 text-xs text-slate-500">
-                Upload the agreement template and enter worker details to dispatch the signing
-                link.
+            <DialogHeader className="shrink-0 border-b px-6 pt-6 pb-4">
+              <DialogTitle className="text-lg font-semibold">Issue New Contract</DialogTitle>
+              <DialogDescription className="text-muted-foreground mt-0.5 text-xs">
+                Select the agreement template and enter the worker&apos;s phone. The contract
+                number is assigned automatically.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-              <div className="space-y-1.5">
-                <label htmlFor="contractPdf" className={cn(LABEL, "block")}>
-                  Contract agreement (PDF)
-                </label>
-                <input
-                  ref={fileInputRef}
-                  id="contractPdf"
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  className="sr-only"
-                  onChange={handleFileChange}
-                />
-                {hasPdf ? (
-                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                    <span
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"
-                      aria-hidden
-                    >
-                      <FileText className="size-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-900">
-                        {contractPdf.name}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {formatFileSize(contractPdf.size)}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 gap-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => fileInputRef.current?.click()}
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+              <Field id="templateId" label="Agreement Template" error={errors.templateId?.message}>
+                <Controller
+                  control={control}
+                  name="templateId"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      {/* The shared trigger is w-fit, fixed-height and nowrap —
+                          all three clip a template's two-line summary. */}
+                      <SelectTrigger
+                        id="templateId"
+                        aria-invalid={!!errors.templateId}
+                        className="h-auto w-full items-start py-2.5 text-left whitespace-normal"
                       >
-                        Replace
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label="Remove PDF"
-                        onClick={clearPdf}
-                        className="text-slate-400 hover:text-destructive"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <label
-                    htmlFor="contractPdf"
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={cn(
-                      "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-5 text-center transition-colors",
-                      errors.contractPdf
-                        ? "border-destructive/40 bg-destructive-soft"
-                        : isDragging
-                          ? "border-slate-400 bg-slate-100"
-                          : "border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-50"
-                    )}
-                  >
-                    <FileText className="size-6 text-slate-400" aria-hidden />
-                    <span className="text-sm font-medium text-slate-700">
-                      Drop contract PDF here or click to browse
-                    </span>
-                    <span className="text-xs text-slate-500">PDF only · up to 10MB</span>
-                  </label>
-                )}
-                {errors.contractPdf && (
-                  <p role="alert" className={ERROR_TEXT}>
-                    {errors.contractPdf.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="contractNumber" className={cn(LABEL, "block")}>
-                  Contract Number
-                </label>
-                <input
-                  id="contractNumber"
-                  aria-invalid={!!errors.contractNumber}
-                  className={cn(CONTROL, "font-mono")}
-                  {...register("contractNumber")}
+                        {/* Rendering the summary here rather than letting
+                            SelectValue clone the item keeps the trigger's layout
+                            independent of the option list's. */}
+                        <SelectValue>
+                          <TemplateSummary template={selectedTemplate} />
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONTRACT_TEMPLATES.map((template) => (
+                          <SelectItem key={template.id} value={template.id} className="py-2">
+                            <TemplateSummary template={template} />
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
-                {errors.contractNumber && (
-                  <p role="alert" className={ERROR_TEXT}>
-                    {errors.contractNumber.message}
-                  </p>
-                )}
-              </div>
+              </Field>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label htmlFor="phone" className={cn(LABEL, "block")}>
-                    Worker Phone Number
-                  </label>
-                  <input
-                    id="phone"
-                    inputMode="tel"
-                    placeholder="+2519… or 09…"
-                    aria-invalid={!!errors.phone}
-                    className={cn(CONTROL, "tabular")}
-                    {...register("phone")}
-                  />
-                  {errors.phone && (
-                    <p role="alert" className={ERROR_TEXT}>
-                      {errors.phone.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="ratePerTaskEtb" className={cn(LABEL, "block")}>
-                    Rate Per Task (ETB)
-                  </label>
-                  <input
-                    id="ratePerTaskEtb"
-                    type="number"
-                    min={1}
-                    step={1}
-                    placeholder="100"
-                    aria-invalid={!!errors.ratePerTaskEtb}
-                    className={cn(CONTROL, "tabular")}
-                    {...register("ratePerTaskEtb", { valueAsNumber: true })}
-                  />
-                  {errors.ratePerTaskEtb && (
-                    <p role="alert" className={ERROR_TEXT}>
-                      {errors.ratePerTaskEtb.message}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <Field
+                id="phone"
+                label="Worker Mobile Phone Number"
+                hint="The capability signing link will be dispatched to this number via SMS."
+                error={errors.phone?.message}
+              >
+                <Input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="+2519... or 09..."
+                  aria-invalid={!!errors.phone}
+                  className="tabular"
+                  {...register("phone")}
+                />
+              </Field>
             </div>
 
-            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
-              <Button type="button" variant="ghost" onClick={resetDialog} disabled={isPending}>
+            <div className="bg-muted/40 flex shrink-0 items-center justify-end gap-3 border-t px-6 py-4">
+              <Button type="button" variant="ghost" onClick={closeDialog} disabled={isPending}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" className="h-11" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin" />}
-                {isPending ? "Dispatching…" : "Issue Contract & Dispatch"}
+                {isPending ? "Issuing & Dispatching SMS…" : "Issue Contract & Dispatch SMS"}
               </Button>
             </div>
           </form>

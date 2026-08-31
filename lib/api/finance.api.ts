@@ -1,27 +1,21 @@
 import { api, apiBlob } from "@/lib/api/client";
-import { uploadViaPresign } from "@/lib/api/upload";
+import { DEFAULT_TEMPLATE_ID } from "@/lib/contract-templates";
+import { normalizePhoneToLocal } from "@/lib/phone";
 import { saveBlob } from "@/lib/save-blob";
 import type {
   ContractStatus,
+  CreateContractRequestBody,
   CreateContractResponseData,
   FinanceContractListItemDto,
   Paginated,
 } from "@/types/backend";
-import type { CreateContractFormInput } from "@/lib/validations/contract.schema";
+import type { CreateContractInput } from "@/lib/validations/contract.schema";
 
 export interface FinanceContractsParams {
   status?: ContractStatus | "ALL";
   search?: string;
   page: number;
   limit: number;
-}
-
-const DEFAULT_EXPIRES_IN_HOURS = 168;
-
-function normalizePdfFile(file: File): File {
-  const name = file.name.toLowerCase().endsWith(".pdf") ? file.name : `${file.name}.pdf`;
-  if (file.type === "application/pdf" && file.name === name) return file;
-  return new File([file], name, { type: "application/pdf" });
 }
 
 function buildContractsQuery(params: FinanceContractsParams): string {
@@ -43,23 +37,21 @@ export const financeApi = {
     return api<Paginated<FinanceContractListItemDto>>(`/finance/contracts?${query}`, { token });
   },
 
-  async createContract(
+  createContract(
     token: string,
-    input: CreateContractFormInput
+    input: CreateContractInput
   ): Promise<CreateContractResponseData> {
-    const contractPdf = normalizePdfFile(input.contractPdf);
-    const contractPdfUrl = await uploadViaPresign(token, contractPdf);
+    // Canonicalized here rather than at the field: +251911223344 and 0911223344
+    // are the same worker, and the backend keys the SMS and dedupe off this.
+    const body: CreateContractRequestBody = {
+      phone: normalizePhoneToLocal(input.phone),
+      templateId: input.templateId || DEFAULT_TEMPLATE_ID,
+    };
 
     return api<CreateContractResponseData>("/finance/contracts", {
       method: "POST",
       token,
-      body: {
-        phone: input.phone.trim(),
-        contractNumber: input.contractNumber,
-        ratePerTaskEtb: input.ratePerTaskEtb,
-        expiresInHours: input.expiresInHours ?? DEFAULT_EXPIRES_IN_HOURS,
-        contractPdfUrl,
-      },
+      body,
     });
   },
 

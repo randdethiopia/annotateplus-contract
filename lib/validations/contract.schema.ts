@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { BANK_VALUES, OTHER_BANK } from "@/lib/banks";
+import { DEFAULT_TEMPLATE_ID } from "@/lib/contract-templates";
 
 export const loginSchema = z.object({
   email: z.string().trim().email("Please enter a valid email address"),
@@ -8,27 +9,31 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
-const MAX_PDF_BYTES = 10 * 1024 * 1024;
+/**
+ * Issuance is now two fields: the pre-vaulted template supplies the rate and
+ * clauses, and the backend assigns the contract number. `contractNumber`,
+ * `ratePerTaskEtb` and `contractPdf` are retained as optional only so callers
+ * built against the old shape still type-check — nothing reads them.
+ */
+export const createContractSchema = z.object({
+  templateId: z.string().default(DEFAULT_TEMPLATE_ID),
+  phone: z
+    .string()
+    .trim()
+    .min(9, "Please enter a valid Ethiopian mobile number (e.g. 0911234567 or +251911234567)")
+    .regex(/^(\+251|0)?(9|7)\d{8}$/, "Must be a valid Ethio Telecom or Safaricom mobile number"),
+  contractNumber: z.string().optional(),
+  ratePerTaskEtb: z.number().optional(),
+  contractPdf: z.any().optional(),
+});
 
-export const createContractSchema = z
-  .object({
-    contractPdf: z.instanceof(File, { message: "Please attach a contract agreement PDF" }),
-    contractNumber: z.string().trim().min(3, "Contract number is required"),
-    phone: z.string().trim().min(9, "Please enter a valid phone number (+251... or 09...)"),
-    ratePerTaskEtb: z
-      .number({ error: "Rate must be a number" })
-      .positive("Rate must be greater than 0"),
-    expiresInHours: z.number().int().positive().optional(),
-  })
-  .refine((f) => f.contractPdf.size <= MAX_PDF_BYTES, "PDF must be under 10MB")
-  .refine(
-    (f) =>
-      f.contractPdf.type === "application/pdf" ||
-      f.contractPdf.name.toLowerCase().endsWith(".pdf"),
-    "File must be a PDF"
-  );
-
-export type CreateContractFormInput = z.infer<typeof createContractSchema>;
+/**
+ * `templateId` has a `.default()`, so the schema's input and output differ:
+ * the form may omit it, the parsed payload always carries it. `useForm` needs
+ * both — the field values it holds, and the values the resolver hands back.
+ */
+export type CreateContractFormValues = z.input<typeof createContractSchema>;
+export type CreateContractInput = z.output<typeof createContractSchema>;
 
 export const rejectContractSchema = z.object({
   rejectionCategory: z.enum([
