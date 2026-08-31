@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { financeApi, type FinanceContractsParams } from "@/lib/api/finance.api";
-import type { CreateContractFormInput } from "@/lib/validations/contract.schema";
+import type { CreateContractInput } from "@/lib/validations/contract.schema";
 
 export function useFinanceContracts(token: string, params: FinanceContractsParams) {
   const filters = {
@@ -52,7 +52,7 @@ export function useFinanceKpis(token: string) {
 export function useCreateContract(token: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateContractFormInput) => financeApi.createContract(token, input),
+    mutationFn: (input: CreateContractInput) => financeApi.createContract(token, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["finance-contracts"] });
       queryClient.invalidateQueries({ queryKey: ["finance-kpis"] });

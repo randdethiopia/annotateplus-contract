@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, MessageSquareWarning, X } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -50,7 +50,7 @@ export function RejectContractDialog({
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     reset,
     formState: { errors },
   } = useForm<RejectContractInput>({
@@ -58,7 +58,9 @@ export function RejectContractDialog({
     defaultValues: DEFAULTS,
   });
 
-  const category = watch("rejectionCategory");
+  // useWatch, not watch(): watch() returns a function the React Compiler cannot
+  // memoize, which opts the component out of auto-memoization.
+  const category = useWatch({ control, name: "rejectionCategory" });
 
   useEffect(() => {
     if (!open) reset(DEFAULTS);
