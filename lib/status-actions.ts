@@ -1,5 +1,12 @@
 import type { ContractStatus } from "@/types/backend";
 
+/**
+ * Fallback attempt ceiling for list views. The dossier and worker endpoints
+ * return the real `maxAttempts`; the contract LIST payload does not, so screens
+ * that only have a list row fall back to this.
+ */
+export const DEFAULT_MAX_ATTEMPTS = 3;
+
 export function canWorkerSubmit(status: ContractStatus): boolean {
   return status === "VIEWED" || status === "RESUBMISSION_REQUIRED";
 }

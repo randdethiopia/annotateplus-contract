@@ -1,22 +1,83 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Ban, CalendarX, Clock, Download, Loader2, PartyPopper, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignedBanner } from "@/components/contracts/signed-banner";
+import { cn } from "@/lib/utils";
+import { SIGN_COPY } from "./copy";
+
+type Tone = "action" | "amber" | "emerald" | "slate" | "destructive";
+
+const TONE: Record<Tone, { badge: string; title: string }> = {
+  action: { badge: "bg-action-soft text-action", title: "text-foreground" },
+  amber: { badge: "bg-amber-50 text-amber-700", title: "text-amber-900" },
+  emerald: { badge: "bg-emerald-50 text-emerald-700", title: "text-emerald-900" },
+  slate: { badge: "bg-muted text-muted-foreground", title: "text-foreground" },
+  destructive: { badge: "bg-destructive-soft text-destructive", title: "text-red-900" },
+};
+
+/** Shared shell for every terminal / waiting screen on the candidate portal. */
+function StatusCockpit({
+  icon,
+  tone,
+  title,
+  titleAmharic,
+  description,
+  children,
+}: {
+  icon: ReactNode;
+  tone: Tone;
+  title: string;
+  titleAmharic?: string;
+  description: string;
+  children?: ReactNode;
+}) {
+  const t = TONE[tone];
+  return (
+    <div className="bg-card rounded-2xl px-6 py-10 text-center shadow-xs sm:px-10">
+      <span
+        className={cn(
+          "mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl",
+          t.badge
+        )}
+        aria-hidden
+      >
+        {icon}
+      </span>
+      <h1 className={cn("text-xl font-bold tracking-tight text-balance", t.title)}>{title}</h1>
+      {titleAmharic && (
+        <p className="font-ethiopic text-muted-foreground mt-1.5 text-sm">{titleAmharic}</p>
+      )}
+      <p className="text-muted-foreground mx-auto mt-3 max-w-sm text-sm text-pretty">
+        {description}
+      </p>
+      {children}
+    </div>
+  );
+}
 
 export function PendingReviewScreen() {
   return (
-    <div className="rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm">
-      <Clock className="mx-auto mb-4 size-10 text-amber-600" />
-      <p className="text-lg font-semibold text-amber-800">Your submission is under review</p>
-      <p className="mt-2 text-sm text-slate-500">
-        Your submission is being verified by our HR team. This page updates automatically.
-      </p>
-      <div className="mt-4 flex items-center justify-center gap-2 text-sm text-amber-700">
-        <Loader2 className="size-4 animate-spin" />
-        <span>Checking for updates…</span>
+    <StatusCockpit
+      icon={<Clock className="size-7" />}
+      tone="amber"
+      title={SIGN_COPY.underReview.en}
+      titleAmharic={SIGN_COPY.underReview.am}
+      description="Our HR team is verifying your Fayda ID and bank details. You'll get an SMS when there's a decision — usually within one working day."
+    >
+      {/* Backed by the 15s refetchInterval in useWorkerContract. */}
+      <div className="bg-surface-subtle text-muted-foreground mt-6 inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium">
+        <span className="relative flex size-2" aria-hidden>
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-amber-400 opacity-75" />
+          <span className="relative inline-flex size-2 rounded-full bg-amber-500" />
+        </span>
+        Checking for updates automatically
       </div>
-    </div>
+      <p className="text-muted-foreground mt-3 text-xs">
+        You can close this page — the link stays valid.
+      </p>
+    </StatusCockpit>
   );
 }
 
@@ -29,16 +90,17 @@ export function SignedSuccessScreen({
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-green-200 bg-white p-8 text-center shadow-sm">
-        <PartyPopper className="mx-auto mb-4 size-10 text-green-600" />
-        <p className="text-xl font-semibold text-green-800">Verified &amp; Signed!</p>
-        <p className="mt-2 text-sm text-slate-500">
-          Your agreement has been approved. Download your signed copy below.
-        </p>
+      <StatusCockpit
+        icon={<PartyPopper className="size-7" />}
+        tone="emerald"
+        title={`🎉 ${SIGN_COPY.verifiedSigned.en}`}
+        titleAmharic={SIGN_COPY.verifiedSigned.am}
+        description="Your agreement has been approved and sealed. Keep a copy for your records — you can download it any time from this link."
+      >
         <Button
           type="button"
           size="lg"
-          className="mt-6"
+          className="mt-6 w-full sm:w-auto"
           onClick={onDownload}
           disabled={isDownloading}
         >
@@ -47,9 +109,9 @@ export function SignedSuccessScreen({
           ) : (
             <Download className="size-5" />
           )}
-          Download Signed Agreement (PDF)
+          Download signed agreement (PDF)
         </Button>
-      </div>
+      </StatusCockpit>
       <SignedBanner />
     </div>
   );
@@ -57,44 +119,45 @@ export function SignedSuccessScreen({
 
 export function ExpiredScreen() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-      <CalendarX className="mx-auto mb-4 size-10 text-slate-500" />
-      <p className="text-lg font-semibold text-slate-900">This signing link has expired</p>
-      <p className="mt-2 text-sm text-slate-500">
-        The deadline to sign this agreement has passed. Please contact HR to request a new link.
-      </p>
-    </div>
+    <StatusCockpit
+      icon={<CalendarX className="size-7" />}
+      tone="slate"
+      title={SIGN_COPY.linkExpired.en}
+      titleAmharic={SIGN_COPY.linkExpired.am}
+      description="The deadline to sign this agreement has passed. Contact HR to request a new signing link."
+    />
   );
 }
 
 export function CancelledScreen() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-      <Ban className="mx-auto mb-4 size-10 text-slate-500" />
-      <p className="text-lg font-semibold text-slate-900">This contract was cancelled</p>
-      <p className="mt-2 text-sm text-slate-500">
-        This agreement is no longer active. Please contact HR if you have questions.
-      </p>
-    </div>
+    <StatusCockpit
+      icon={<Ban className="size-7" />}
+      tone="slate"
+      title={SIGN_COPY.contractCancelled.en}
+      titleAmharic={SIGN_COPY.contractCancelled.am}
+      description="This agreement is no longer active. Please contact HR if you have questions."
+    />
   );
 }
 
 export function RejectedScreen() {
   return (
-    <div className="rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
-      <XCircle className="mx-auto mb-4 size-10 text-red-500" />
-      <p className="text-lg font-semibold text-red-800">This contract was not approved</p>
-      <p className="mt-2 text-sm text-slate-500">
-        All submission attempts have been used. Please contact HR if you believe this is a mistake.
-      </p>
-    </div>
+    <StatusCockpit
+      icon={<XCircle className="size-7" />}
+      tone="destructive"
+      title={SIGN_COPY.notApproved.en}
+      titleAmharic={SIGN_COPY.notApproved.am}
+      description="All submission attempts have been used, so this link is now closed. Please contact HR if you believe this is a mistake."
+    />
   );
 }
 
 export function InvitedLoadingScreen() {
   return (
-    <div className="flex justify-center rounded-2xl border border-gray-100 bg-white py-16 shadow-sm">
-      <Loader2 className="size-8 animate-spin text-slate-400" />
+    <div className="bg-card flex flex-col items-center justify-center gap-3 rounded-2xl py-16 shadow-xs">
+      <Loader2 className="text-action size-7 animate-spin" aria-hidden />
+      <p className="text-muted-foreground text-sm">Opening your agreement…</p>
     </div>
   );
 }

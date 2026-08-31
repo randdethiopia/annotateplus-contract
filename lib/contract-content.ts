@@ -8,6 +8,8 @@ export const DOC_REVISION = "Rev no-1";
 export const DOC_TAGLINE = "INNOVATE YOUR BUSINESS";
 
 export const AGREEMENT_TITLE = "TASK-BASED DATA ANNOTATION WORKER AGREEMENT";
+/** Page count of the source PDF. Read by the signing portal's viewer header. */
+export const AGREEMENT_PAGE_COUNT = 4;
 export const AGREEMENT_DESCRIPTION =
   "This Agreement sets out the terms under which you will complete task-based data annotation work for R&D, including scope of work, payment, confidentiality, and quality expectations. Please read it in full before signing.";
 export const COMPANY_NAME = "R & D Entrepreneurship and Outsourcing Center PLC";

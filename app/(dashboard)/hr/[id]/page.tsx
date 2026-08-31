@@ -2,13 +2,25 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, ShieldAlert, X, Check } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  IdCard,
+  Landmark,
+  Loader2,
+  Maximize2,
+  ShieldAlert,
+  UserRound,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/agar/page-header";
-import { StatusBadge } from "@/components/agar/status-badge";
+import { PageHeader } from "@/components/system/page-header";
+import { StatusBadge } from "@/components/system/status-badge";
+import { EmptyState } from "@/components/system/empty-state";
 import { BackLink } from "@/components/dashboard/back-link";
 import { ApproveContractDialog } from "@/components/contracts/approve-contract-dialog";
 import { AttemptHistory } from "@/components/contracts/attempt-history";
+import { CopyValueButton } from "@/components/contracts/copy-value-button";
 import { DossierSkeleton } from "@/components/contracts/dossier-skeleton";
 import { IdCardLightbox } from "@/components/contracts/id-card-lightbox";
 import { RejectContractDialog } from "@/components/contracts/reject-contract-dialog";
@@ -28,7 +40,38 @@ import { canApprove, canRetrySealing } from "@/lib/status-actions";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import { extractDossierBankFields } from "@/lib/dossier/bank-fields";
 import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 import type { ContractStatus, RejectPayload } from "@/types/backend";
+
+type IdSide = "front" | "back";
+
+function DetailItem({
+  label,
+  value,
+  ethiopic,
+  className,
+}: {
+  label: string;
+  value: string;
+  ethiopic?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <p className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "text-foreground mt-1 text-sm font-medium break-words",
+          ethiopic && "font-ethiopic"
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
 
 function IdCardPanel({
   label,
@@ -43,22 +86,33 @@ function IdCardPanel({
 }) {
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-[#1A4428]">{label}</p>
+      <p className="text-muted-foreground mb-1.5 text-[11px] font-semibold tracking-wider uppercase">
+        {label}
+      </p>
       {isLoading ? (
-        <div className="flex h-48 items-center justify-center rounded-lg bg-[#F4F4F5]">
-          <Loader2 className="size-5 animate-spin text-slate-400" />
+        <div className="bg-surface-subtle flex h-48 items-center justify-center rounded-xl">
+          <Loader2 className="text-action size-5 animate-spin" aria-hidden />
         </div>
       ) : imageUrl ? (
         <button
           type="button"
           onClick={onZoom}
-          className="block w-full overflow-hidden rounded-lg bg-[#F4F4F5] ring-offset-2 transition hover:ring-2 hover:ring-[#69B34C] focus:outline-none focus:ring-2 focus:ring-[#69B34C]"
+          aria-label={`Zoom ${label}`}
+          className="bg-surface-subtle ring-action focus-visible:ring-action group relative block w-full overflow-hidden rounded-xl transition hover:ring-2 focus-visible:ring-2 focus-visible:outline-none"
         >
+          {/* Authenticated blob URL — next/image cannot optimize it. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageUrl} alt={label} className="h-48 w-full object-contain" />
+          <span className="bg-primary/75 pointer-events-none absolute right-2 bottom-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+            <Maximize2 className="size-3" aria-hidden />
+            Inspect
+          </span>
         </button>
       ) : (
-        <p className="text-sm text-red-500">Could not load image</p>
+        <div className="bg-destructive-soft text-destructive flex h-48 flex-col items-center justify-center gap-2 rounded-xl text-sm">
+          <AlertTriangle className="size-5" aria-hidden />
+          Could not load image
+        </div>
       )}
     </div>
   );
@@ -71,7 +125,7 @@ export default function HrDossierPage() {
 
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [lightbox, setLightbox] = useState<{ url: string; title: string } | null>(null);
+  const [lightboxSide, setLightboxSide] = useState<IdSide | null>(null);
   const [actionResult, setActionResult] = useState<{
     status: ContractStatus;
     documentHash?: string;
@@ -135,15 +189,22 @@ export default function HrDossierPage() {
     });
   }
 
-  if (isLoading) {
-    return <DossierSkeleton />;
-  }
+  if (isLoading) return <DossierSkeleton />;
 
   if (isError || !dossier) {
     return (
-      <p className="text-sm text-red-500">
-        {error instanceof ApiError ? error.message : "Contract not found"}
-      </p>
+      <div className="space-y-6">
+        <BackLink href="/hr" label="Back to review queue" />
+        <EmptyState
+          icon={<AlertTriangle className="text-destructive size-5" />}
+          title="Contract not found"
+          description={
+            error instanceof ApiError
+              ? error.message
+              : "This dossier could not be loaded. It may have been removed."
+          }
+        />
+      </div>
     );
   }
 
@@ -153,9 +214,12 @@ export default function HrDossierPage() {
   const { bankName, bankAccountHolderName, bankAccountNumber } = extractDossierBankFields(dossier);
   const bankAccountSummary = `${bankName} — ${bankAccountHolderName} — ${bankAccountNumber}`;
 
+  const lightboxUrl =
+    lightboxSide === "front" ? frontImage.url : lightboxSide === "back" ? backImage.url : null;
+
   return (
-    <div className="space-y-6">
-      <BackLink href="/hr" />
+    <div className={cn("space-y-6", showDecisionBar && "pb-24")}>
+      <BackLink href="/hr" label="Back to review queue" />
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <PageHeader
@@ -166,127 +230,176 @@ export default function HrDossierPage() {
         {effectiveStatus && <StatusBadge status={effectiveStatus} />}
       </div>
 
-      {effectiveStatus === "SIGNED" && (
-        <SignedBanner documentHash={actionResult?.documentHash} />
-      )}
+      {effectiveStatus === "SIGNED" && <SignedBanner documentHash={actionResult?.documentHash} />}
 
       {latestAttempt && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
           <div className="space-y-6 lg:col-span-7">
-            <Card className="border-0 shadow-xs">
+            <Card>
               <CardHeader>
-                <CardTitle>Worker Submitted Information</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <UserRound className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                  Submitted information
+                </CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-                <div>
-                  <p className="text-muted-foreground">Full Name (English)</p>
-                  <p className="font-medium text-[#1A4428]">
-                    {latestAttempt.submittedData.fullNameEnglish}
-                  </p>
-                </div>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                <DetailItem
+                  label="Full name (English)"
+                  value={latestAttempt.submittedData.fullNameEnglish}
+                />
                 {latestAttempt.submittedData.fullNameAmharic && (
-                  <div>
-                    <p className="text-muted-foreground">Full Name (Amharic)</p>
-                    <p className="font-ethiopic font-medium text-[#1A4428]">
-                      {latestAttempt.submittedData.fullNameAmharic}
-                    </p>
-                  </div>
+                  <DetailItem
+                    label="Full name (Amharic)"
+                    value={latestAttempt.submittedData.fullNameAmharic}
+                    ethiopic
+                  />
                 )}
-                <div>
-                  <p className="text-muted-foreground">Residence Address</p>
-                  <p className="font-medium text-[#1A4428]">
-                    {latestAttempt.submittedData.residenceLocation}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Contact Phone</p>
-                  <p className="font-medium text-[#1A4428]">
-                    {normalizePhoneToLocal(dossier.phone)}
-                  </p>
-                </div>
+                <DetailItem
+                  label="Residence"
+                  value={latestAttempt.submittedData.residenceLocation}
+                />
+                <DetailItem label="Contact phone" value={normalizePhoneToLocal(dossier.phone)} />
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-xs">
+            <Card>
               <CardHeader>
-                <CardTitle>Financial &amp; Payout Details</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Landmark className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                  Financial &amp; payout details
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm">
+              <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-muted-foreground">Bank Name</p>
-                    <p className="font-medium text-[#1A4428]">{bankName}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Bank Account Holder Name</p>
-                    <p className="font-medium text-[#1A4428]">{bankAccountHolderName}</p>
-                  </div>
+                  <DetailItem label="Bank name" value={bankName} />
+                  <DetailItem label="Account holder" value={bankAccountHolderName} />
                 </div>
                 <div>
-                  <p className="mb-2 text-muted-foreground">Decrypted Bank Account Number</p>
-                  <p className="rounded-lg bg-[#F4F4F5] p-4 font-mono text-lg font-semibold text-[#1A4428]">
-                    {bankAccountNumber}
+                  <p className="text-muted-foreground mb-1.5 text-[11px] font-semibold tracking-wider uppercase">
+                    Decrypted bank account number
+                  </p>
+                  {/* Dark pill: the one value on this page that gets re-keyed into
+                      a bank portal, so it is deliberately the highest-contrast
+                      thing in the dossier. */}
+                  <div className="bg-primary flex items-center gap-2 rounded-xl p-3.5">
+                    <p className="text-primary-foreground min-w-0 flex-1 font-mono text-lg font-semibold break-all tabular">
+                      {bankAccountNumber}
+                    </p>
+                    <CopyValueButton
+                      value={bankAccountNumber}
+                      label="Account number"
+                      className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-white/10"
+                    />
+                  </div>
+                  <p className="text-muted-foreground mt-1.5 text-xs">
+                    Check this digit-for-digit against the candidate&apos;s ID and bank details.
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-xs">
-              <CardContent className="pt-6">
-                <AttemptHistory attempts={dossier.attempts} />
-              </CardContent>
-            </Card>
+            {dossier.attempts.length > 1 && (
+              <Card>
+                <CardContent className="pt-6">
+                  <AttemptHistory attempts={dossier.attempts} />
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          <div className="lg:col-span-5">
-            <Card className="border-0 shadow-xs">
+          {/* Sticky so ID cards stay in view while the reviewer scrolls the left column. */}
+          <div className="lg:sticky lg:top-6 lg:col-span-5">
+            <Card>
               <CardHeader>
-                <CardTitle>Physical Fayda National ID Card Inspection</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <IdCard className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                  Fayda National ID inspection
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <IdCardPanel
-                  label="Fayda — Front"
+                  label="Fayda — front"
                   imageUrl={frontImage.url}
                   isLoading={frontImage.isLoading}
-                  onZoom={() =>
-                    frontImage.url &&
-                    setLightbox({ url: frontImage.url, title: "Fayda ID — Front" })
-                  }
+                  onZoom={() => frontImage.url && setLightboxSide("front")}
                 />
                 <IdCardPanel
-                  label="Fayda — Back"
+                  label="Fayda — back"
                   imageUrl={backImage.url}
                   isLoading={backImage.isLoading}
-                  onZoom={() =>
-                    backImage.url &&
-                    setLightbox({ url: backImage.url, title: "Fayda ID — Back" })
-                  }
+                  onZoom={() => backImage.url && setLightboxSide("back")}
                 />
+                <p className="text-muted-foreground text-xs">
+                  Click either card to zoom, pan, and rotate at full resolution.
+                </p>
               </CardContent>
             </Card>
           </div>
         </div>
       )}
 
+      {actionResult?.status === "PDF_GENERATION_FAILED" && (
+        <div className="space-y-3 rounded-2xl bg-orange-50 p-4">
+          <p className="flex items-start gap-2.5 text-sm text-orange-900">
+            <ShieldAlert className="mt-0.5 size-4 shrink-0 text-orange-600" aria-hidden />
+            <span>
+              <span className="font-semibold">Approval succeeded, but sealing the PDF failed.</span>{" "}
+              {actionResult.sealingError}
+            </span>
+          </p>
+          <Button type="button" onClick={handleRetrySealing} disabled={isRetrying}>
+            {isRetrying && <Loader2 className="size-4 animate-spin" />}
+            Retry sealing
+          </Button>
+        </div>
+      )}
+
+      {!actionResult && canRetrySealing(dossier.status) && (
+        <div className="space-y-3 rounded-2xl bg-orange-50 p-4">
+          <p className="flex items-start gap-2.5 text-sm text-orange-900">
+            <ShieldAlert className="mt-0.5 size-4 shrink-0 text-orange-600" aria-hidden />
+            <span>
+              This contract was approved but the sealed PDF was never generated. Retry to complete
+              it.
+            </span>
+          </p>
+          <Button type="button" onClick={handleRetrySealing} disabled={isRetrying}>
+            {isRetrying && <Loader2 className="size-4 animate-spin" />}
+            Retry sealing
+          </Button>
+        </div>
+      )}
+
+      {/* Sticky so the decision stays one click away, however long the dossier.
+          Full-bleed: the HR workspace runs on a top bar now, so there is no left
+          rail to offset against. */}
       {showDecisionBar && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-white p-4 shadow-xs">
-          <Button
-            type="button"
-            variant="outline"
-            className="border-red-200 text-red-700 hover:bg-red-50"
-            onClick={() => setRejectOpen(true)}
-          >
-            <X className="size-4" />
-            Reject with Feedback
-          </Button>
-          <Button
-            type="button"
-            className="bg-[#1A4428] hover:bg-[#13331e] text-white"
-            onClick={() => setApproveOpen(true)}
-          >
-            <Check className="size-4" />
-            Approve &amp; Seal Agreement
-          </Button>
+        <div className="bg-background/85 border-border fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur">
+          <div className="flex items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:px-10">
+            <p className="text-muted-foreground mr-auto hidden text-sm sm:block">
+              Verify the ID and bank details before deciding.
+            </p>
+            {/* Equal halves on a phone; natural widths once the hint appears. */}
+            <Button
+              type="button"
+              variant="outline"
+              className="text-destructive hover:bg-destructive-soft hover:text-destructive flex-1 sm:flex-none"
+              onClick={() => setRejectOpen(true)}
+            >
+              <X className="size-4" />
+              Reject
+              <span className="hidden sm:inline">&nbsp;with feedback</span>
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 sm:flex-none"
+              onClick={() => setApproveOpen(true)}
+            >
+              <Check className="size-4" />
+              Approve
+              <span className="hidden sm:inline">&nbsp;&amp; seal agreement</span>
+            </Button>
+          </div>
         </div>
       )}
 
@@ -308,31 +421,13 @@ export default function HrDossierPage() {
       />
 
       <IdCardLightbox
-        open={!!lightbox}
-        onOpenChange={(open) => !open && setLightbox(null)}
-        imageUrl={lightbox?.url ?? null}
-        title={lightbox?.title ?? ""}
+        open={!!lightboxSide}
+        onOpenChange={(open) => !open && setLightboxSide(null)}
+        imageUrl={lightboxUrl}
+        title={lightboxSide === "back" ? "Fayda ID — back" : "Fayda ID — front"}
+        onPrev={lightboxSide === "back" ? () => setLightboxSide("front") : undefined}
+        onNext={lightboxSide === "front" ? () => setLightboxSide("back") : undefined}
       />
-
-      {actionResult?.status === "PDF_GENERATION_FAILED" && (
-        <div className="space-y-2 rounded-lg border border-orange-200 bg-orange-50 p-4">
-          <p className="flex items-center gap-2 text-sm text-orange-800">
-            <ShieldAlert className="size-4" />
-            Approval succeeded but sealing the PDF failed: {actionResult.sealingError}
-          </p>
-          <Button type="button" onClick={handleRetrySealing} disabled={isRetrying}>
-            {isRetrying && <Loader2 className="size-4 animate-spin" />}
-            Retry sealing
-          </Button>
-        </div>
-      )}
-
-      {!actionResult && canRetrySealing(dossier.status) && (
-        <Button type="button" onClick={handleRetrySealing} disabled={isRetrying}>
-          {isRetrying && <Loader2 className="size-4 animate-spin" />}
-          Retry sealing
-        </Button>
-      )}
     </div>
   );
 }

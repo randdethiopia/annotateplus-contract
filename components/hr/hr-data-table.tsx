@@ -1,0 +1,266 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Check, ChevronRight, SearchX } from "lucide-react";
+import { StatusDotLabel } from "@/components/system/status-badge";
+import { SURFACE_CARD } from "@/components/system/surface";
+import { formatAgreementDate } from "@/lib/format-date";
+import { getInitials } from "@/lib/initials";
+import { normalizePhoneToLocal } from "@/lib/phone";
+import { DEFAULT_MAX_ATTEMPTS } from "@/lib/status-actions";
+import { cn } from "@/lib/utils";
+import type { ContractListItemDto } from "@/types/backend";
+
+const HEAD_CELL = "px-4 text-left align-middle font-semibold whitespace-nowrap";
+
+const COLUMNS = [
+  "Candidate",
+  "Contract #",
+  "Fayda Status",
+  "Payout Details",
+  "Status",
+  "Submitted",
+  "",
+] as const;
+
+// ── Cell fragments ────────────────────────────────────────────────────────────
+// Shared by the desktop grid and the mobile cards so the two renderings of the
+// same row can never drift apart.
+
+function CandidateIdentity({ item }: { item: ContractListItemDto }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <span
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600"
+        aria-hidden
+      >
+        {getInitials(item.candidateName)}
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-slate-900">
+          {item.candidateName ?? "Awaiting submission"}
+        </p>
+        {item.candidateNameAmharic && (
+          <p className="font-ethiopic truncate text-xs text-slate-500">
+            {item.candidateNameAmharic}
+          </p>
+        )}
+        <p className="truncate font-mono text-xs text-slate-400">
+          {normalizePhoneToLocal(item.phone)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ContractRef({ item }: { item: ContractListItemDto }) {
+  return (
+    <>
+      <span className="inline-block rounded bg-slate-100 px-2 py-0.5 font-mono text-xs whitespace-nowrap text-slate-700">
+        {item.contractNumber}
+      </span>
+      <p className="mt-1 text-[11px] whitespace-nowrap text-slate-400">
+        Attempt {item.currentAttemptNumber || 1}/{DEFAULT_MAX_ATTEMPTS}
+      </p>
+    </>
+  );
+}
+
+function FaydaCell({ submitted }: { submitted: boolean }) {
+  // There is no per-photo flag on the list payload, and there cannot be a
+  // submission without both ID sides — so the submission itself is the signal.
+  if (!submitted) {
+    return (
+      <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-slate-500">
+        Awaiting upload
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-emerald-700">
+      <Check className="size-3 shrink-0" aria-hidden />
+      Photos Attached
+    </span>
+  );
+}
+
+function PayoutCell({ item }: { item: ContractListItemDto }) {
+  if (!item.bankName && !item.bankAccountMasked) {
+    return <span className="text-xs text-slate-400">—</span>;
+  }
+  return (
+    <>
+      <p className="truncate text-xs font-medium text-slate-700">{item.bankName ?? "—"}</p>
+      <p className="font-mono text-xs whitespace-nowrap text-slate-500 tabular">
+        {item.bankAccountMasked ?? "—"}
+      </p>
+    </>
+  );
+}
+
+function SubmittedLabel({ item }: { item: ContractListItemDto }) {
+  return <>{item.submittedAt ? formatAgreementDate(item.submittedAt) : "—"}</>;
+}
+
+// ── Public component ──────────────────────────────────────────────────────────
+
+export function HrDataTable({
+  items,
+  isLoading,
+  emptyTitle = "No candidate contracts match your filter.",
+}: {
+  items: ContractListItemDto[];
+  isLoading?: boolean;
+  emptyTitle?: string;
+}) {
+  const router = useRouter();
+
+  if (isLoading) return <HrDataTableSkeleton />;
+
+  if (items.length === 0) {
+    return (
+      <div className={cn(SURFACE_CARD, "px-6 py-16 text-center")}>
+        <span
+          className="mx-auto mb-3 flex size-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400"
+          aria-hidden
+        >
+          <SearchX className="size-5" />
+        </span>
+        <p className="text-sm font-medium text-slate-600">{emptyTitle}</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Below lg the seven columns become one card per candidate. The whole
+          card is the link, so the touch target is the card rather than a 28px
+          button, and there is no nested interactive inside it. */}
+      <ul className="space-y-3 lg:hidden">
+        {items.map((item) => (
+          <li key={item.contractId}>
+            <Link
+              href={`/hr/${item.contractId}`}
+              className={cn(
+                SURFACE_CARD,
+                "block p-4 transition-colors hover:bg-slate-50/70 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:ring-offset-2 focus-visible:outline-none"
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <CandidateIdentity item={item} />
+                <StatusDotLabel status={item.status} />
+              </div>
+
+              <div className="mt-3.5 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <ContractRef item={item} />
+                </div>
+                <div className="text-right">
+                  <PayoutCell item={item} />
+                </div>
+              </div>
+
+              <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                <FaydaCell submitted={!!item.submittedAt} />
+                <span className="text-[11px] text-slate-400">
+                  <SubmittedLabel item={item} />
+                </span>
+              </div>
+
+              <span className="mt-3 flex items-center justify-end gap-1 text-xs font-semibold text-slate-900">
+                Review
+                <ChevronRight className="size-3.5" aria-hidden />
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      {/* The grid needs ~900px to breathe, so it appears only from lg. */}
+      <div className={cn(SURFACE_CARD, "hidden lg:block")}>
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="h-10 border-b border-slate-200 bg-slate-50/60 text-[11px] tracking-wider text-slate-500 uppercase">
+              {COLUMNS.map((column, i) => (
+                <th
+                  key={column || `actions-${i}`}
+                  scope="col"
+                  className={cn(HEAD_CELL, !column && "sr-only")}
+                >
+                  {column || "Actions"}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => {
+              const href = `/hr/${item.contractId}`;
+              return (
+                <tr
+                  key={item.contractId}
+                  onClick={() => router.push(href)}
+                  className="cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/70"
+                >
+                  <td className="px-4 py-3">
+                    <CandidateIdentity item={item} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <ContractRef item={item} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <FaydaCell submitted={!!item.submittedAt} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <PayoutCell item={item} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusDotLabel status={item.status} />
+                  </td>
+                  <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500">
+                    <SubmittedLabel item={item} />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {/* A real link, so the row stays keyboard-reachable and
+                        middle-click/open-in-new-tab keep working. */}
+                    <Link
+                      href={href}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-medium whitespace-nowrap text-white transition-colors hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:ring-offset-2 focus-visible:outline-none"
+                    >
+                      Review
+                      <span aria-hidden>→</span>
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function HrDataTableSkeleton() {
+  return (
+    <div className={SURFACE_CARD} aria-busy="true" aria-label="Loading the verification queue">
+      <div className="hidden h-10 border-b border-slate-200 bg-slate-50/60 lg:block" />
+      {[0, 1, 2, 3].map((row) => (
+        <div
+          key={row}
+          className="flex animate-pulse items-center gap-4 border-b border-slate-100 px-4 py-3 last:border-0"
+        >
+          <div className="size-8 shrink-0 rounded-full bg-slate-100" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="h-3 w-full max-w-40 rounded bg-slate-100" />
+            <div className="h-2.5 w-24 rounded bg-slate-100" />
+          </div>
+          <div className="hidden h-3 w-32 rounded bg-slate-100 lg:block" />
+          <div className="hidden h-3 w-28 rounded bg-slate-100 lg:block" />
+          <div className="h-7 w-16 shrink-0 rounded-lg bg-slate-100 sm:w-20" />
+        </div>
+      ))}
+    </div>
+  );
+}

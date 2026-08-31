@@ -3,7 +3,7 @@
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { downloadCsv } from "@/lib/csv";
-import { STATUS_STYLE } from "@/components/agar/status-badge";
+import { STATUS_STYLE } from "@/components/system/status-badge";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import type { ContractListItemDto } from "@/types/backend";
 
@@ -24,14 +24,17 @@ function rowFor(item: ContractListItemDto): Record<string, string> {
 export function ExportReviewerCsvButton({
   items,
   fileName,
+  className,
 }: {
   items: ContractListItemDto[];
   fileName: string;
+  className?: string;
 }) {
   return (
     <Button
       type="button"
       variant="outline"
+      className={className}
       disabled={items.length === 0}
       onClick={() => downloadCsv(fileName, items.map(rowFor))}
     >

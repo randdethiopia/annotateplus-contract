@@ -12,9 +12,14 @@ export function PaginationBar({
   total: number;
   onPageChange: (page: number) => void;
 }) {
+  const safeTotalPages = Math.max(totalPages, 1);
+
   return (
-    <div className="flex items-center justify-between text-sm text-slate-500">
-      <span>{total} total</span>
+    <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
+      <span className="tabular">
+        <span className="text-foreground font-semibold">{total.toLocaleString()}</span>{" "}
+        {total === 1 ? "contract" : "contracts"}
+      </span>
       <div className="flex items-center gap-2">
         <Button
           type="button"
@@ -26,14 +31,14 @@ export function PaginationBar({
           <ChevronLeft className="size-4" />
           Prev
         </Button>
-        <span>
-          Page {page} of {Math.max(totalPages, 1)}
+        <span className="px-1 text-xs font-medium tabular">
+          Page {page} of {safeTotalPages}
         </span>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          disabled={page >= totalPages}
+          disabled={page >= safeTotalPages}
           onClick={() => onPageChange(page + 1)}
         >
           Next

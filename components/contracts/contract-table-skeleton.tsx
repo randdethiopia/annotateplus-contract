@@ -10,22 +10,34 @@ export function ContractTableSkeleton({ variant }: { variant: "hr" | "finance" |
   const widths = COLUMN_WIDTHS[variant];
 
   return (
-    <div className="space-y-3">
-      <div className="hidden gap-4 border-b pb-2 sm:flex">
-        {widths.map((width, i) => (
-          <Skeleton key={i} className={`h-4 ${width}`} />
-        ))}
-      </div>
-      {Array.from({ length: 5 }).map((_, row) => (
-        <div
-          key={row}
-          className="flex flex-col gap-2 rounded-lg border border-gray-100 p-4 sm:flex-row sm:items-center sm:gap-4 sm:border-0 sm:p-0"
-        >
+    <div className="space-y-3 sm:space-y-0">
+      <div className="bg-card hidden rounded-2xl px-4 shadow-xs sm:block">
+        <div className="border-border flex gap-4 border-b py-3.5">
           {widths.map((width, i) => (
-            <Skeleton key={i} className={`h-4 ${width} max-sm:w-full`} />
+            <Skeleton key={i} className={`h-3.5 ${width}`} />
           ))}
         </div>
-      ))}
+        {Array.from({ length: 6 }).map((_, row) => (
+          <div key={row} className="border-border flex gap-4 border-b py-4 last:border-0">
+            {widths.map((width, i) => (
+              <Skeleton key={i} className={`h-4 ${width}`} />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-3 sm:hidden">
+        {Array.from({ length: 4 }).map((_, row) => (
+          <div key={row} className="bg-card space-y-2.5 rounded-2xl p-4 shadow-xs">
+            <div className="flex items-center justify-between gap-2">
+              <Skeleton className="h-3.5 w-28" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+            </div>
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3.5 w-28" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

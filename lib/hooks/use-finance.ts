@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { financeApi, type FinanceContractsParams } from "@/lib/api/finance.api";
 import type { CreateContractFormInput } from "@/lib/validations/contract.schema";
-import type { ContractStatus } from "@/types/backend";
 
 export function useFinanceContracts(token: string, params: FinanceContractsParams) {
   const filters = {
@@ -41,29 +40,12 @@ export function useFinanceKpis(token: string) {
     enabled: !!token,
   });
 
-  const signedPayoutQuery = useQuery({
-    queryKey: ["finance-kpis", "signed-payout"],
-    queryFn: () =>
-      financeApi.getContracts(token, { status: "SIGNED", page: 1, limit: 100 }),
-    enabled: !!token,
-  });
-
-  const payoutItems = signedPayoutQuery.data?.items ?? [];
-  const payoutTotal = signedPayoutQuery.data?.total ?? 0;
-  const payoutSum = payoutItems.reduce((sum, item) => sum + item.ratePerTaskEtb, 0);
-  const payoutHasMore = payoutTotal > payoutItems.length;
-
   return {
     totalSigned: signedCountQuery.data?.total ?? 0,
     pendingReview: pendingReviewQuery.data?.total ?? 0,
     activeDrafts: draftsQuery.data?.total ?? 0,
-    payoutReadyEtb: payoutSum,
-    payoutHasMore,
     isLoading:
-      signedCountQuery.isLoading ||
-      pendingReviewQuery.isLoading ||
-      draftsQuery.isLoading ||
-      signedPayoutQuery.isLoading,
+      signedCountQuery.isLoading || pendingReviewQuery.isLoading || draftsQuery.isLoading,
   };
 }
 

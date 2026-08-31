@@ -1,37 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { PageHeader } from "@/components/agar/page-header";
-import { StatCard } from "@/components/agar/stat-card";
-import { StatusBadge } from "@/components/agar/status-badge";
-import { ContractMobileCard } from "@/components/contracts/contract-mobile-card";
-import { ContractTableSkeleton } from "@/components/contracts/contract-table-skeleton";
-import { HrActionBar } from "@/components/contracts/hr-action-bar";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { CommandBar, type QueueFilterValue, type QueueTab } from "@/components/system/command-bar";
+import { MetricsStrip } from "@/components/system/metrics-strip";
+import { HrDataTable } from "@/components/hr/hr-data-table";
+import { EmptyState } from "@/components/system/empty-state";
+import { ExportReviewerCsvButton } from "@/components/contracts/export-reviewer-csv-button";
 import { PaginationBar } from "@/components/contracts/pagination-bar";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useReviewerContracts, useReviewerKpis } from "@/lib/hooks/use-reviewer";
-import { normalizePhoneToLocal } from "@/lib/phone";
+import {
+  useRefreshReviewerQueue,
+  useReviewerContracts,
+  useReviewerKpis,
+} from "@/lib/hooks/use-reviewer";
 import { ApiError } from "@/lib/api/client";
-import type { ContractStatus } from "@/types/backend";
+import { cn } from "@/lib/utils";
+
+const HR_TABS = (needsReview?: number): QueueTab[] => [
+  { value: "ALL", label: "All" },
+  { value: "PENDING_REVIEW", label: "Needs Review", count: needsReview },
+  { value: "RESUBMISSION_REQUIRED", label: "Resubmissions" },
+  { value: "SIGNED", label: "Verified" },
+  { value: "REJECTED", label: "Rejected" },
+];
 
 export default function HrPage() {
   const { token } = useAuth();
-  const [status, setStatus] = useState<ContractStatus | "ALL">("PENDING_REVIEW");
+  const [status, setStatus] = useState<QueueFilterValue>("PENDING_REVIEW");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const limit = 20;
 
   const kpis = useReviewerKpis(token ?? "");
+  const { refresh, isRefreshing } = useRefreshReviewerQueue();
   const { data, isLoading, isError, error } = useReviewerContracts(token ?? "", {
     status: status === "ALL" ? undefined : status,
     search: search || undefined,
@@ -40,126 +43,116 @@ export default function HrPage() {
   });
 
   const items = data?.items ?? [];
+  const hasFilters = !!search || status !== "ALL";
 
   return (
     <div className="space-y-6">
-      <PageHeader category="HR Operations" title="Verification & Review Queue" />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Pending Review"
-          value={kpis.isLoading ? "—" : kpis.pendingReview}
-          tint="amber"
-        />
-        <StatCard
-          label="Resubmission Required"
-          value={kpis.isLoading ? "—" : kpis.resubmissionRequired}
-          tint="orange"
-        />
-        <StatCard
-          label="Total Verified"
-          value={kpis.isLoading ? "—" : kpis.totalVerified}
-          tint="emerald"
-        />
-        <StatCard
-          label="Total Rejected"
-          value={kpis.isLoading ? "—" : kpis.totalRejected}
-          tint="red"
-        />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+          Verification Queue
+        </h1>
+        {/* On a phone the two actions split one row evenly instead of wrapping
+            into a ragged stack. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <ExportReviewerCsvButton
+            items={items}
+            fileName="hr-contracts.csv"
+            className="flex-1 sm:flex-none"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 sm:flex-none"
+            onClick={refresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={cn("size-4", isRefreshing && "animate-spin")} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      <HrActionBar
-        search={search}
-        onSearchChange={setSearch}
-        onSearchCommit={() => setPage(1)}
-        status={status}
-        onStatusChange={(v) => {
-          setStatus(v);
-          setPage(1);
-        }}
-        items={items}
+      <MetricsStrip
+        isLoading={kpis.isLoading}
+        segments={[
+          {
+            key: "pending",
+            label: "Pending Review",
+            value: kpis.pendingReview,
+            dotClassName: "bg-amber-500",
+          },
+          {
+            key: "resubmission",
+            label: "Resubmission Req.",
+            value: kpis.resubmissionRequired,
+            dotClassName: "bg-orange-500",
+          },
+          {
+            key: "verified",
+            label: "Verified",
+            value: kpis.totalVerified,
+            dotClassName: "bg-emerald-500",
+          },
+          {
+            key: "rejected",
+            label: "Terminal Rejected",
+            value: kpis.totalRejected,
+            dotClassName: "bg-rose-500",
+          },
+        ]}
       />
 
-      {isLoading ? (
-        <ContractTableSkeleton variant="hr" />
-      ) : isError ? (
-        <p className="text-sm text-red-500">
-          {error instanceof ApiError ? error.message : "Failed to load contracts"}
-        </p>
-      ) : items.length === 0 ? (
-        <p className="rounded-xl bg-white py-10 text-center text-sm text-muted-foreground shadow-xs">
-          No contracts match.
-        </p>
-      ) : (
-        <>
-          <div className="space-y-3 sm:hidden">
-            {items.map((item) => (
-              <ContractMobileCard
-                key={item.contractId}
-                contractNumber={item.contractNumber}
-                status={item.status}
-                primaryLabel={item.candidateName ?? "—"}
-                phone={item.phone}
-                href={`/hr/${item.contractId}`}
-                actionLabel="Review"
-                meta={
-                  item.currentAttemptNumber
-                    ? `Attempt ${item.currentAttemptNumber}`
-                    : undefined
-                }
-              />
-            ))}
-          </div>
-          <div className="hidden sm:block rounded-xl bg-white shadow-xs">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b border-[#E8E8E7] hover:bg-transparent">
-                  <TableHead>Contract #</TableHead>
-                  <TableHead>Candidate Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Bank</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Attempt #</TableHead>
-                  <TableHead>Submitted Date</TableHead>
-                  <TableHead className="w-24">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.contractId} className="border-b border-[#E8E8E7] last:border-0">
-                    <TableCell className="font-medium">{item.contractNumber}</TableCell>
-                    <TableCell>{item.candidateName ?? "—"}</TableCell>
-                    <TableCell>{normalizePhoneToLocal(item.phone)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {item.bankAccountMasked ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={item.status} />
-                    </TableCell>
-                    <TableCell>{item.currentAttemptNumber || "—"}</TableCell>
-                    <TableCell>
-                      {item.submittedAt ? new Date(item.submittedAt).toLocaleString() : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Button type="button" size="sm" variant="outline" asChild>
-                        <Link href={`/hr/${item.contractId}`}>Review</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          {data && (
-            <PaginationBar
-              page={data.page}
-              totalPages={data.totalPages}
-              total={data.total}
-              onPageChange={setPage}
+      <div className="space-y-4">
+        <CommandBar
+          search={search}
+          onSearchChange={setSearch}
+          onSearchCommit={() => setPage(1)}
+          status={status}
+          onStatusChange={(value) => {
+            setStatus(value);
+            setPage(1);
+          }}
+          tabs={HR_TABS(kpis.isLoading ? undefined : kpis.pendingReview)}
+          searchLabel="Search the verification queue"
+        />
+
+        {isError ? (
+          <EmptyState
+            icon={<AlertTriangle className="text-destructive size-5" />}
+            title="Could not load the review queue"
+            description={
+              error instanceof ApiError ? error.message : "Please check your connection and retry."
+            }
+            action={
+              <Button type="button" variant="outline" onClick={refresh}>
+                <RefreshCw className="size-4" />
+                Try again
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <HrDataTable
+              items={items}
+              isLoading={isLoading}
+              emptyTitle={
+                hasFilters
+                  ? "No candidate contracts match your filter."
+                  : "No candidate contracts yet."
+              }
             />
-          )}
-        </>
-      )}
+
+            {data && data.totalPages > 1 && (
+              <PaginationBar
+                page={data.page}
+                totalPages={data.totalPages}
+                total={data.total}
+                onPageChange={setPage}
+              />
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

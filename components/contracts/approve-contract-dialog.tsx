@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { useRef } from "react";
+import { Check, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,33 +29,55 @@ export function ApproveContractDialog({
   onConfirm: () => void;
   isPending: boolean;
 }) {
+  const confirmRef = useRef<HTMLButtonElement>(null);
+
+  const summary = [
+    { label: "Candidate", value: candidateName },
+    { label: "Contract number", value: contractNumber },
+    { label: "Bank account", value: bankAccount, mono: true },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          confirmRef.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Approve &amp; seal agreement</DialogTitle>
           <DialogDescription>
-            Review the details below before sealing this agreement.
+            Check these details against the ID card before sealing. This cannot be undone.
           </DialogDescription>
         </DialogHeader>
 
-        <dl className="grid gap-3 text-sm">
-          <div>
-            <dt className="text-muted-foreground">Candidate</dt>
-            <dd className="font-medium text-[#1A4428]">{candidateName}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Contract number</dt>
-            <dd className="font-medium text-[#1A4428]">{contractNumber}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Bank account</dt>
-            <dd className="font-medium text-[#1A4428]">{bankAccount}</dd>
-          </div>
+        <dl className="bg-surface-subtle grid gap-3 rounded-xl p-4 text-sm">
+          {summary.map((row) => (
+            <div key={row.label}>
+              <dt className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                {row.label}
+              </dt>
+              <dd
+                className={
+                  row.mono
+                    ? "text-foreground mt-0.5 font-mono text-sm font-semibold break-all tabular"
+                    : "text-foreground mt-0.5 font-semibold"
+                }
+              >
+                {row.value}
+              </dd>
+            </div>
+          ))}
         </dl>
 
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Approving will seal the official PDF agreement and dispatch an SMS to the candidate.
+        <p className="flex items-start gap-2.5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <ShieldAlert className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+          <span>
+            Approving seals the official PDF agreement and sends a confirmation SMS to the
+            candidate.
+          </span>
         </p>
 
         <DialogFooter>
@@ -66,14 +89,9 @@ export function ApproveContractDialog({
           >
             Cancel
           </Button>
-          <Button
-            type="button"
-            onClick={onConfirm}
-            disabled={isPending}
-            className="bg-[#1A4428] hover:bg-[#13331e] text-white"
-          >
-            {isPending && <Loader2 className="size-4 animate-spin" />}
-            Approve &amp; Seal Agreement
+          <Button ref={confirmRef} type="button" onClick={onConfirm} disabled={isPending}>
+            {isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+            {isPending ? "Sealing…" : "Approve & seal"}
           </Button>
         </DialogFooter>
       </DialogContent>

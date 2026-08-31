@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { BrandLogo } from "@/components/branding/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/system/field";
 import { useAuth } from "@/lib/auth/auth-context";
 import { describeError } from "@/lib/describe-error";
 import { loginSchema, type LoginInput } from "@/lib/validations/contract.schema";
@@ -44,48 +44,53 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md rounded-2xl border-0 bg-white p-8 shadow-xs">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <BrandLogo className="h-10" width={200} height={48} />
-          <p className="text-sm text-muted-foreground">
-            Sign in to R&amp;D Contract Management Portal
-          </p>
+    <div className="bg-background flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="bg-card rounded-3xl p-8 shadow-xs">
+          <div className="mb-8 flex flex-col items-center gap-3 text-center">
+            <BrandLogo className="h-10" />
+            <div>
+              <h1 className="text-foreground text-lg font-bold tracking-tight">
+                AnnotatePlus Contract
+              </h1>
+              <p className="text-muted-foreground mt-0.5 text-sm">
+                Sign in to the contract management portal
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+            <Field id="email" label="Email" error={errors.email?.message}>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="username"
+                autoFocus
+                aria-invalid={!!errors.email}
+                {...register("email")}
+              />
+            </Field>
+
+            <Field id="password" label="Password" error={errors.password?.message}>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                aria-invalid={!!errors.password}
+                {...register("password")}
+              />
+            </Field>
+
+            <Button type="submit" size="lg" disabled={isSubmitting} className="w-full">
+              {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+              {isSubmitting ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
         </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="username"
-              className="h-11 px-4"
-              {...register("email")}
-            />
-            {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              className="h-11 px-4"
-              {...register("password")}
-            />
-            {errors.password && (
-              <p className="text-sm text-red-500">{errors.password.message}</p>
-            )}
-          </div>
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="h-11 w-full rounded-lg bg-[#1A4428] font-semibold text-white hover:bg-[#13331e]"
-          >
-            {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-            Sign in
-          </Button>
-        </form>
+
+        <p className="text-muted-foreground mt-6 text-center text-xs">
+          Staff access only. Candidates sign via the link sent to their phone.
+        </p>
       </div>
     </div>
   );

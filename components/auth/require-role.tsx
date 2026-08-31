@@ -28,8 +28,8 @@ export function RequireRole({
 
   if (!isAllowed) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-slate-400" />
+      <div className="bg-background flex min-h-screen items-center justify-center">
+        <Loader2 className="text-action size-6 animate-spin" aria-hidden />
       </div>
     );
   }
