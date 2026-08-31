@@ -14,7 +14,10 @@ function Checkbox({
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+        // Borderless, but a checkbox IS its boundary — bg-muted on a white card
+        // is a 1.06:1 edge, i.e. invisible. So the unchecked state is a firmer
+        // slate well with an inset shadow, reading as recessed rather than outlined.
+        "peer bg-slate-200 shadow-[inset_0_1px_2px_rgb(15_23_42/0.12)] data-[state=checked]:bg-action data-[state=checked]:text-action-foreground data-[state=checked]:shadow-xs focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 aria-invalid:bg-destructive-soft size-5 shrink-0 rounded-md border-0 transition-colors outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}

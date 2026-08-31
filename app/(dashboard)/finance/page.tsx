@@ -1,25 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Loader2 } from "lucide-react";
+import { AlertTriangle, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/agar/page-header";
-import { StatCard } from "@/components/agar/stat-card";
-import { StatusBadge } from "@/components/agar/status-badge";
-import { ContractMobileCard } from "@/components/contracts/contract-mobile-card";
-import { ContractTableSkeleton } from "@/components/contracts/contract-table-skeleton";
-import { FinanceActionBar } from "@/components/contracts/finance-action-bar";
+import { CommandBar, type QueueFilterValue, type QueueTab } from "@/components/system/command-bar";
+import { MetricsStrip } from "@/components/system/metrics-strip";
+import { EmptyState } from "@/components/system/empty-state";
+import { FinanceTable } from "@/components/finance/finance-table";
+import { CreateContractDialog } from "@/components/finance/create-contract-dialog";
 import { FinanceDetailSheet } from "@/components/contracts/finance-detail-sheet";
 import { PaginationBar } from "@/components/contracts/pagination-bar";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
   useDownloadFinanceDocument,
@@ -27,15 +18,13 @@ import {
   useFinanceContracts,
   useFinanceKpis,
 } from "@/lib/hooks/use-finance";
-import { formatAgreementDate } from "@/lib/format-date";
-import { normalizePhoneToLocal } from "@/lib/phone";
 import { ApiError } from "@/lib/api/client";
 import { describeError } from "@/lib/describe-error";
-import type { ContractStatus, FinanceContractListItemDto } from "@/types/backend";
+import type { FinanceContractListItemDto } from "@/types/backend";
 
 export default function FinancePage() {
   const { token } = useAuth();
-  const [status, setStatus] = useState<ContractStatus | "ALL">("SIGNED");
+  const [status, setStatus] = useState<QueueFilterValue>("SIGNED");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<FinanceContractListItemDto | null>(null);
@@ -49,10 +38,26 @@ export default function FinancePage() {
     limit,
   });
   const { mutate: exportPayroll, isPending: isExporting } = useExportPayrollCsv(token ?? "");
-  const { mutate: downloadDocument, isPending: isDownloading, variables: downloadVars } =
-    useDownloadFinanceDocument(token ?? "");
+  const {
+    mutate: downloadDocument,
+    isPending: isDownloading,
+    variables: downloadVars,
+  } = useDownloadFinanceDocument(token ?? "");
 
   const items = data?.items ?? [];
+  const hasFilters = !!search || status !== "ALL";
+
+  const tabs: QueueTab[] = [
+    { value: "ALL", label: "All" },
+    { value: "SIGNED", label: "Signed" },
+    {
+      value: "PENDING_REVIEW",
+      label: "Pending Review",
+      count: kpis.isLoading ? undefined : kpis.pendingReview,
+    },
+    { value: "INVITED", label: "Invited" },
+    { value: "RESUBMISSION_REQUIRED", label: "Resubmissions" },
+  ];
 
   function handleExport() {
     exportPayroll(undefined, {
@@ -78,137 +83,102 @@ export default function FinancePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader category="Finance Operations" title="Contracts & Payroll Management" />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Signed"
-          value={kpis.isLoading ? "—" : kpis.totalSigned}
-        />
-        <StatCard
-          label="Pending Review"
-          value={kpis.isLoading ? "—" : kpis.pendingReview}
-        />
-        <StatCard
-          label="Active Drafts"
-          value={kpis.isLoading ? "—" : kpis.activeDrafts}
-        />
-        <StatCard
-          label="Total Payout Ready"
-          value={
-            kpis.isLoading
-              ? "—"
-              : `${kpis.payoutReadyEtb.toLocaleString()} ETB${kpis.payoutHasMore ? "+" : ""}`
-          }
-          hint={kpis.payoutHasMore ? "Based on first 100 signed contracts" : undefined}
-        />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+          Contracts &amp; Payroll
+        </h1>
+        {/* On a phone the two actions split one row evenly instead of wrapping
+            into a ragged stack. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 sm:flex-none"
+            onClick={handleExport}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Download className="size-4" />
+            )}
+            Export Payroll CSV
+          </Button>
+          <CreateContractDialog />
+        </div>
       </div>
 
-      <FinanceActionBar
-        search={search}
-        onSearchChange={setSearch}
-        onSearchCommit={() => setPage(1)}
-        status={status}
-        onStatusChange={(v) => {
-          setStatus(v);
-          setPage(1);
-        }}
-        onExportPayroll={handleExport}
-        isExporting={isExporting}
+      <MetricsStrip
+        isLoading={kpis.isLoading}
+        segments={[
+          {
+            key: "signed",
+            label: "Total Signed",
+            value: kpis.totalSigned,
+            dotClassName: "bg-emerald-500",
+          },
+          {
+            key: "pending",
+            label: "Pending Review",
+            value: kpis.pendingReview,
+            dotClassName: "bg-amber-500",
+          },
+          {
+            key: "drafts",
+            label: "Active Drafts",
+            value: kpis.activeDrafts,
+            dotClassName: "bg-slate-400",
+          },
+        ]}
       />
 
-      {isLoading ? (
-        <ContractTableSkeleton variant="finance" />
-      ) : isError ? (
-        <p className="text-sm text-red-500">
-          {error instanceof ApiError ? error.message : "Failed to load contracts"}
-        </p>
-      ) : items.length === 0 ? (
-        <p className="rounded-xl bg-white py-10 text-center text-sm text-muted-foreground shadow-xs">
-          No contracts match.
-        </p>
-      ) : (
-        <>
-          <div className="space-y-3 sm:hidden">
-            {items.map((item) => (
-              <ContractMobileCard
-                key={item.contractId}
-                contractNumber={item.contractNumber}
-                status={item.status}
-                primaryLabel={item.workerName ?? "—"}
-                phone={item.phone}
-                onClick={() => setSelected(item)}
-                actionLabel="View"
-                meta={formatAgreementDate(item.agreementDate)}
-              />
-            ))}
-          </div>
-          <div className="hidden sm:block rounded-xl bg-white shadow-xs">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b border-[#E8E8E7] hover:bg-transparent">
-                  <TableHead>Contract #</TableHead>
-                  <TableHead>Candidate Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Agreement Date</TableHead>
-                  <TableHead className="w-16">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => {
-                  const isRowDownloading =
-                    isDownloading && downloadVars?.id === item.contractId;
-                  return (
-                    <TableRow
-                      key={item.contractId}
-                      className="cursor-pointer border-b border-[#E8E8E7] last:border-0"
-                      onClick={() => setSelected(item)}
-                    >
-                      <TableCell className="font-medium">{item.contractNumber}</TableCell>
-                      <TableCell>{item.workerName ?? "—"}</TableCell>
-                      <TableCell>{normalizePhoneToLocal(item.phone)}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={item.status} />
-                      </TableCell>
-                      <TableCell>{formatAgreementDate(item.agreementDate)}</TableCell>
-                      <TableCell>
-                        {item.status === "SIGNED" && (
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="size-8"
-                            disabled={isRowDownloading}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownload(item);
-                            }}
-                          >
-                            {isRowDownloading ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <FileText className="size-4" />
-                            )}
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-          {data && (
-            <PaginationBar
-              page={data.page}
-              totalPages={data.totalPages}
-              total={data.total}
-              onPageChange={setPage}
+      <div className="space-y-4">
+        <CommandBar
+          search={search}
+          onSearchChange={setSearch}
+          onSearchCommit={() => setPage(1)}
+          status={status}
+          onStatusChange={(value) => {
+            setStatus(value);
+            setPage(1);
+          }}
+          tabs={tabs}
+          searchPlaceholder="Search worker name, phone, or contract number…"
+          searchLabel="Search contracts and payroll"
+        />
+
+        {isError ? (
+          <EmptyState
+            icon={<AlertTriangle className="text-destructive size-5" />}
+            title="Could not load contracts"
+            description={
+              error instanceof ApiError ? error.message : "Please check your connection and retry."
+            }
+          />
+        ) : (
+          <>
+            <FinanceTable
+              items={items}
+              isLoading={isLoading}
+              emptyTitle={
+                hasFilters ? "No contracts match your filter." : "No contracts issued yet."
+              }
+              downloadingId={isDownloading ? downloadVars?.id : undefined}
+              onDownload={handleDownload}
+              onSelect={setSelected}
             />
-          )}
-        </>
-      )}
+
+            {data && data.totalPages > 1 && (
+              <PaginationBar
+                page={data.page}
+                totalPages={data.totalPages}
+                total={data.total}
+                onPageChange={setPage}
+              />
+            )}
+          </>
+        )}
+      </div>
 
       <FinanceDetailSheet contract={selected} onOpenChange={(open) => !open && setSelected(null)} />
     </div>

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageSquareWarning, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -22,12 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Field } from "@/components/system/field";
 import { REJECTION_CATEGORY_OPTIONS } from "@/lib/rejection-categories";
 import {
   rejectContractSchema,
   type RejectContractInput,
 } from "@/lib/validations/contract.schema";
 import type { RejectPayload } from "@/types/backend";
+
+const DEFAULTS: RejectContractInput = {
+  rejectionCategory: "OTHER",
+  rejectionReasonEnglish: "",
+  rejectionReasonAmharic: "",
+};
 
 export function RejectContractDialog({
   open,
@@ -49,23 +55,13 @@ export function RejectContractDialog({
     formState: { errors },
   } = useForm<RejectContractInput>({
     resolver: zodResolver(rejectContractSchema),
-    defaultValues: {
-      rejectionCategory: "OTHER",
-      rejectionReasonEnglish: "",
-      rejectionReasonAmharic: "",
-    },
+    defaultValues: DEFAULTS,
   });
 
   const category = watch("rejectionCategory");
 
   useEffect(() => {
-    if (!open) {
-      reset({
-        rejectionCategory: "OTHER",
-        rejectionReasonEnglish: "",
-        rejectionReasonAmharic: "",
-      });
-    }
+    if (!open) reset(DEFAULTS);
   }, [open, reset]);
 
   function handleFormSubmit(values: RejectContractInput) {
@@ -78,17 +74,20 @@ export function RejectContractDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Reject with feedback</DialogTitle>
+          <DialogTitle className="text-destructive flex items-center gap-2">
+            <MessageSquareWarning className="size-5 shrink-0" aria-hidden />
+            Reject with feedback
+          </DialogTitle>
           <DialogDescription>
-            The candidate will receive your feedback by SMS and may resubmit if attempts remain.
+            The candidate receives this feedback by SMS and can resubmit if attempts remain.
+            Write it so they know exactly what to fix.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Rejection category</Label>
+          <Field label="Rejection category" error={errors.rejectionCategory?.message}>
             <Select
               value={category}
               onValueChange={(v) =>
@@ -97,7 +96,7 @@ export function RejectContractDialog({
                 })
               }
             >
-              <SelectTrigger className="w-full bg-[#F4F4F5] border-0">
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -108,28 +107,42 @@ export function RejectContractDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Reason (English) — required</Label>
+          </Field>
+
+          <Field
+            id="rejectionReasonEnglish"
+            label="Reason (English)"
+            error={errors.rejectionReasonEnglish?.message}
+            hint="Max 500 characters."
+          >
             <Textarea
+              id="rejectionReasonEnglish"
               rows={3}
               maxLength={500}
-              className="bg-[#F4F4F5] border-0"
+              autoFocus
+              placeholder="e.g. The back of your ID is blurry — please retake it in brighter light."
+              aria-invalid={!!errors.rejectionReasonEnglish}
               {...register("rejectionReasonEnglish")}
             />
-            {errors.rejectionReasonEnglish && (
-              <p className="text-sm text-red-500">{errors.rejectionReasonEnglish.message}</p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label>Reason (Amharic) — optional</Label>
+          </Field>
+
+          <Field
+            id="rejectionReasonAmharic"
+            label="Reason (Amharic)"
+            labelAmharic="በአማርኛ"
+            optional
+            error={errors.rejectionReasonAmharic?.message}
+            hint="Strongly recommended — most candidates read Amharic more comfortably."
+          >
             <Textarea
+              id="rejectionReasonAmharic"
               rows={3}
               maxLength={500}
-              className="font-ethiopic bg-[#F4F4F5] border-0"
+              className="font-ethiopic"
+              aria-invalid={!!errors.rejectionReasonAmharic}
               {...register("rejectionReasonAmharic")}
             />
-          </div>
+          </Field>
 
           <DialogFooter>
             <Button
@@ -140,13 +153,9 @@ export function RejectContractDialog({
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isPending}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              {isPending && <Loader2 className="size-4 animate-spin" />}
-              Reject with Feedback
+            <Button type="submit" variant="destructive" disabled={isPending}>
+              {isPending ? <Loader2 className="size-4 animate-spin" /> : <X className="size-4" />}
+              {isPending ? "Sending…" : "Reject with feedback"}
             </Button>
           </DialogFooter>
         </form>

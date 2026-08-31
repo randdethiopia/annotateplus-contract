@@ -10,16 +10,47 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { StatusBadge } from "@/components/agar/status-badge";
+import { StatusBadge } from "@/components/system/status-badge";
 import { SignedBanner } from "@/components/contracts/signed-banner";
 import { ContractDocument } from "@/components/contracts/contract-document";
+import { CopyValueButton } from "@/components/contracts/copy-value-button";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useDownloadFinanceDocument } from "@/lib/hooks/use-finance";
 import { canFinanceDownload } from "@/lib/status-actions";
 import { formatAgreementDate, formatSignedDateTime } from "@/lib/format-date";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import { describeError } from "@/lib/describe-error";
+import { cn } from "@/lib/utils";
 import type { FinanceContractListItemDto } from "@/types/backend";
+
+function Row({
+  label,
+  value,
+  ethiopic,
+  mono,
+}: {
+  label: string;
+  value: string;
+  ethiopic?: boolean;
+  mono?: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "text-foreground mt-1 text-sm font-medium break-words",
+          ethiopic && "font-ethiopic",
+          mono && "font-mono tabular"
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
 
 export function FinanceDetailSheet({
   contract,
@@ -46,76 +77,81 @@ export function FinanceDetailSheet({
 
   return (
     <Sheet open={!!contract} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+      <SheetContent className="bg-background w-full overflow-y-auto sm:max-w-2xl">
         {contract && (
           <>
-            <SheetHeader>
-              <SheetTitle>{contract.contractNumber}</SheetTitle>
-              <SheetDescription>{normalizePhoneToLocal(contract.phone)}</SheetDescription>
+            <SheetHeader className="border-border border-b px-5 pt-5 pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
+                <SheetTitle className="font-mono text-base">
+                  {contract.contractNumber}
+                </SheetTitle>
+                <StatusBadge status={contract.status} />
+              </div>
+              <SheetDescription className="tabular">
+                {normalizePhoneToLocal(contract.phone)}
+              </SheetDescription>
             </SheetHeader>
-            <div className="space-y-4 px-4 pb-4">
-              <StatusBadge status={contract.status} />
 
+            <div className="space-y-5 px-5 pb-6">
               {contract.status === "SIGNED" && (
                 <SignedBanner documentHash={contract.documentHash} />
               )}
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-slate-500">Worker</p>
-                  <p className="font-medium text-slate-900">{contract.workerName ?? "—"}</p>
-                </div>
+              <div className="bg-card grid grid-cols-2 gap-4 rounded-2xl p-4 shadow-xs">
+                <Row label="Worker" value={contract.workerName ?? "—"} />
                 {contract.workerNameAmharic && (
-                  <div>
-                    <p className="text-slate-500">Worker (Amharic)</p>
-                    <p className="font-ethiopic font-medium text-slate-900">
-                      {contract.workerNameAmharic}
-                    </p>
-                  </div>
+                  <Row label="Worker (Amharic)" value={contract.workerNameAmharic} ethiopic />
                 )}
+                <Row label="Bank" value={contract.bankName ?? "—"} />
                 <div>
-                  <p className="text-slate-500">Bank</p>
-                  <p className="font-medium text-slate-900">{contract.bankName ?? "—"}</p>
-                </div>
-                <div>
-                  <p className="text-slate-500">Account (masked)</p>
-                  <p className="font-medium text-slate-900">
-                    {contract.bankAccountMasked ?? "—"}
+                  <p className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+                    Account (masked)
                   </p>
-                </div>
-                <div>
-                  <p className="text-slate-500">Rate</p>
-                  <p className="font-medium text-slate-900">{contract.ratePerTaskEtb} ETB / task</p>
-                </div>
-                <div>
-                  <p className="text-slate-500">Agreement date</p>
-                  <p className="font-medium text-slate-900">
-                    {formatAgreementDate(contract.agreementDate)}
-                  </p>
-                </div>
-                {contract.signedAt && (
-                  <div>
-                    <p className="text-slate-500">Signed at</p>
-                    <p className="font-medium text-slate-900">
-                      {formatSignedDateTime(contract.signedAt)}
+                  <div className="mt-1 flex items-center gap-1">
+                    <p className="text-foreground font-mono text-sm font-medium tabular">
+                      {contract.bankAccountMasked ?? "—"}
                     </p>
+                    {contract.bankAccountMasked && (
+                      <CopyValueButton
+                        value={contract.bankAccountMasked}
+                        label="Masked account"
+                      />
+                    )}
                   </div>
+                </div>
+                <Row
+                  label="Rate"
+                  value={`${contract.ratePerTaskEtb.toLocaleString()} ETB / task`}
+                />
+                <Row
+                  label="Agreement date"
+                  value={formatAgreementDate(contract.agreementDate)}
+                />
+                {contract.signedAt && (
+                  <Row label="Signed at" value={formatSignedDateTime(contract.signedAt)} />
                 )}
               </div>
 
               {canFinanceDownload(contract.status) && contract.hasSealedDocument && (
-                <Button type="button" onClick={handleDownload} disabled={isPending}>
+                <Button
+                  type="button"
+                  onClick={handleDownload}
+                  disabled={isPending}
+                  className="w-full sm:w-auto"
+                >
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
                     <Download className="size-4" />
                   )}
-                  Download PDF
+                  Download sealed PDF
                 </Button>
               )}
 
               <div>
-                <h3 className="mb-3 text-base font-semibold text-slate-900">Full agreement</h3>
+                <h3 className="text-foreground mb-3 text-sm font-semibold tracking-tight">
+                  Full agreement
+                </h3>
                 <ContractDocument
                   contractNumber={contract.contractNumber}
                   workerName={contract.workerName ?? "________________________"}

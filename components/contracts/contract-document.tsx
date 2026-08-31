@@ -1,9 +1,10 @@
 import { forwardRef } from "react";
 import { BrandLogo } from "@/components/branding/brand-logo";
-import { Rubik, Allura } from "next/font/google";
+import { Rubik } from "next/font/google";
 import { formatAgreementDate } from "@/lib/format-date";
 import {
   AGREEMENT_DESCRIPTION,
+  AGREEMENT_PAGE_COUNT,
   AGREEMENT_TITLE,
   Bullet,
   COMPANY_ADDRESS,
@@ -18,7 +19,6 @@ import {
 } from "@/lib/contract-content";
 
 const rubik = Rubik({ subsets: ["latin"], weight: "500" });
-const signatureFont = Allura({ subsets: ["latin"], weight: "400" });
 
 function DocHeader() {
   return (
@@ -29,7 +29,7 @@ function DocHeader() {
           {DOC_HEADER_TITLE}
         </h2>
       </div>
-      <BrandLogo className="h-10" width={200} height={48} />
+      <BrandLogo className="h-10" />
     </div>
   );
 }
@@ -190,7 +190,7 @@ export const ContractDocument = forwardRef<HTMLDivElement, ContractDocumentProps
               <p className="border-b border-slate-300 pb-1 flex items-end min-h-[2rem]">
                 Signature:&nbsp;
                 {signed ? (
-                  <span className={`${signatureFont.className} text-4xl leading-none text-black`}>
+                  <span className={"font-signature text-4xl leading-none text-black"}>
                     {COMPANY_SIGNATORY_NAME}
                   </span>
                 ) : (
@@ -214,7 +214,7 @@ export const ContractDocument = forwardRef<HTMLDivElement, ContractDocumentProps
               <p className="border-b border-slate-300 pb-1 flex items-end min-h-[2rem]">
                 Signature:&nbsp;
                 {signed ? (
-                  <span className={`${signatureFont.className} text-4xl leading-none text-black`}>
+                  <span className={"font-signature text-4xl leading-none text-black"}>
                     {workerName}
                   </span>
                 ) : (
@@ -234,7 +234,7 @@ export const ContractDocument = forwardRef<HTMLDivElement, ContractDocumentProps
           </p>
         )}
 
-        <DocFooter page={4} />
+        <DocFooter page={AGREEMENT_PAGE_COUNT} />
       </div>
     );
   }

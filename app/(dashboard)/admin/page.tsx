@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { ClipboardCheck, Wallet } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Inbox, Wallet } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -12,9 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SearchFilterBar } from "@/components/contracts/search-filter-bar";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/system/page-header";
+import { StatusBadge } from "@/components/system/status-badge";
+import { EmptyState } from "@/components/system/empty-state";
+import { Omnibar, type FilterValue } from "@/components/system/omnibar";
 import { PaginationBar } from "@/components/contracts/pagination-bar";
-import { StatusBadge } from "@/components/agar/status-badge";
 import { StatusSummary } from "@/components/contracts/status-summary";
 import { ExportReviewerCsvButton } from "@/components/contracts/export-reviewer-csv-button";
 import { ContractTableSkeleton } from "@/components/contracts/contract-table-skeleton";
@@ -22,37 +25,41 @@ import { ContractMobileCard } from "@/components/contracts/contract-mobile-card"
 import { useAuth } from "@/lib/auth/auth-context";
 import { useReviewerContracts } from "@/lib/hooks/use-reviewer";
 import { normalizePhoneToLocal } from "@/lib/phone";
+import { formatAgreementDate } from "@/lib/format-date";
 import { ApiError } from "@/lib/api/client";
-import type { ContractStatus } from "@/types/backend";
 
-const STATUS_OPTIONS: (ContractStatus | "ALL")[] = [
+const FILTER_PILLS: FilterValue[] = [
   "ALL",
   "PENDING_REVIEW",
   "INVITED",
-  "VIEWED",
   "RESUBMISSION_REQUIRED",
-  "APPROVED",
-  "PDF_GENERATION_FAILED",
   "SIGNED",
   "REJECTED",
   "EXPIRED",
-  "CANCELLED",
-  "DRAFT",
 ];
 
-function Cell({ children, href }: { children: ReactNode; href: string }) {
-  return (
-    <TableCell className="p-0">
-      <Link href={href} className="block px-2 py-2">
-        {children}
-      </Link>
-    </TableCell>
-  );
-}
+const HEAD_CLASS = "text-muted-foreground text-[11px] font-semibold tracking-wider uppercase";
+
+const SHORTCUTS = [
+  {
+    href: "/hr",
+    icon: ClipboardCheck,
+    title: "Review queue",
+    description: "Verify candidate IDs and bank details, then approve or reject.",
+    tint: "bg-amber-50 text-amber-700",
+  },
+  {
+    href: "/finance",
+    icon: Wallet,
+    title: "Finance console",
+    description: "Issue contracts, track status, and export bank-ready payouts.",
+    tint: "bg-action-soft text-action",
+  },
+];
 
 export default function AdminPage() {
   const { user, token } = useAuth();
-  const [status, setStatus] = useState<ContractStatus | "ALL">("ALL");
+  const [status, setStatus] = useState<FilterValue>("ALL");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -65,57 +72,53 @@ export default function AdminPage() {
   });
 
   const items = data?.items ?? [];
+  const hasFilters = !!search || status !== "ALL";
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Welcome, {user?.fullName}</h1>
-        <p className="text-sm text-slate-500">
-          Your admin account has full visibility over every contract, plus access to the review
-          queue and finance console.
-        </p>
-      </div>
+      <PageHeader
+        category="Administration"
+        title={user ? `Welcome, ${user.fullName}` : "Admin Cockpit"}
+        description="Full visibility over every contract, plus access to the review queue and finance console."
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Link href="/hr">
-          <Card className="h-full border-0 shadow-xs transition-shadow hover:shadow-sm">
-            <CardHeader>
-              <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-                <ClipboardCheck className="size-5" />
-              </div>
-              <CardTitle className="mt-3">Review Queue</CardTitle>
-              <CardDescription>
-                Review submitted contracts, verify IDs, and approve or reject.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-
-        <Link href="/finance">
-          <Card className="h-full border-0 shadow-xs transition-shadow hover:shadow-sm">
-            <CardHeader>
-              <div className="flex size-10 items-center justify-center rounded-lg bg-teal-100 text-teal-700">
-                <Wallet className="size-5" />
-              </div>
-              <CardTitle className="mt-3">Finance Console</CardTitle>
-              <CardDescription>
-                Create and send contracts, track status, and export payroll.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
+        {SHORTCUTS.map((shortcut) => {
+          const Icon = shortcut.icon;
+          return (
+            <Link
+              key={shortcut.href}
+              href={shortcut.href}
+              className="focus-visible:ring-ring rounded-2xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              <Card className="h-full transition-shadow hover:shadow-md">
+                <CardHeader>
+                  <div
+                    className={`flex size-10 items-center justify-center rounded-xl ${shortcut.tint}`}
+                    aria-hidden
+                  >
+                    <Icon className="size-5" />
+                  </div>
+                  <CardTitle className="mt-3">{shortcut.title}</CardTitle>
+                  <CardDescription>{shortcut.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
 
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">All Contracts</h2>
-            <p className="text-sm text-slate-500">Click a contract to see the full agreement.</p>
+            <h2 className="text-foreground text-lg font-bold tracking-tight">All contracts</h2>
+            <p className="text-muted-foreground text-sm">
+              Click any row to open the full agreement.
+            </p>
           </div>
-          <ExportReviewerCsvButton items={items} fileName="all-contracts.csv" />
         </div>
 
-        <SearchFilterBar
+        <Omnibar
           search={search}
           onSearchChange={setSearch}
           onSearchCommit={() => setPage(1)}
@@ -124,8 +127,8 @@ export default function AdminPage() {
             setStatus(v);
             setPage(1);
           }}
-          statusOptions={STATUS_OPTIONS}
-          searchPlaceholder="Search name, phone, or contract number…"
+          pills={FILTER_PILLS}
+          actions={<ExportReviewerCsvButton items={items} fileName="all-contracts.csv" />}
         />
 
         {!isLoading && !isError && data && (
@@ -138,13 +141,23 @@ export default function AdminPage() {
         {isLoading ? (
           <ContractTableSkeleton variant="admin" />
         ) : isError ? (
-          <p className="text-sm text-red-500">
-            {error instanceof ApiError ? error.message : "Failed to load contracts"}
-          </p>
+          <EmptyState
+            icon={<AlertTriangle className="text-destructive size-5" />}
+            title="Could not load contracts"
+            description={
+              error instanceof ApiError ? error.message : "Please check your connection and retry."
+            }
+          />
         ) : items.length === 0 ? (
-          <p className="rounded-lg border border-dashed py-10 text-center text-sm text-slate-500">
-            No contracts match.
-          </p>
+          <EmptyState
+            icon={<Inbox className="size-5" />}
+            title={hasFilters ? "No contracts match these filters" : "No contracts yet"}
+            description={
+              hasFilters
+                ? "Try a different status filter, or clear the search box."
+                : "Contracts created in the finance console appear here."
+            }
+          />
         ) : (
           <>
             <div className="space-y-3 sm:hidden">
@@ -153,46 +166,58 @@ export default function AdminPage() {
                   key={item.contractId}
                   contractNumber={item.contractNumber}
                   status={item.status}
-                  primaryLabel={item.candidateName ?? "—"}
+                  primaryLabel={item.candidateName ?? "Awaiting submission"}
                   phone={item.phone}
                   href={`/admin/${item.contractId}`}
-                  actionLabel="Review"
+                  actionLabel="View"
                 />
               ))}
             </div>
-            <div className="hidden sm:block">
+
+            <div className="bg-card hidden overflow-hidden rounded-2xl shadow-xs sm:block">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Contract #</TableHead>
-                    <TableHead>Candidate</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Submitted</TableHead>
+                  <TableRow className="border-border bg-surface-subtle/60 hover:bg-surface-subtle/60 border-b">
+                    <TableHead className={`px-4 ${HEAD_CLASS}`}>Contract #</TableHead>
+                    <TableHead className={HEAD_CLASS}>Candidate</TableHead>
+                    <TableHead className={HEAD_CLASS}>Phone</TableHead>
+                    <TableHead className={HEAD_CLASS}>Status</TableHead>
+                    <TableHead className={HEAD_CLASS}>Submitted</TableHead>
+                    <TableHead className="w-20 px-4" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item) => {
-                    const href = `/admin/${item.contractId}`;
-                    return (
-                      <TableRow key={item.contractId}>
-                        <Cell href={href}>
-                          <span className="font-medium">{item.contractNumber}</span>
-                        </Cell>
-                        <Cell href={href}>{item.candidateName ?? "—"}</Cell>
-                        <Cell href={href}>{normalizePhoneToLocal(item.phone)}</Cell>
-                        <Cell href={href}>
-                          <StatusBadge status={item.status} />
-                        </Cell>
-                        <Cell href={href}>
-                          {item.submittedAt ? new Date(item.submittedAt).toLocaleString() : "—"}
-                        </Cell>
-                      </TableRow>
-                    );
-                  })}
+                  {items.map((item) => (
+                    <TableRow
+                      key={item.contractId}
+                      className="border-border hover:bg-surface-subtle/70 border-b last:border-0"
+                    >
+                      <TableCell className="text-muted-foreground px-4 py-3.5 font-mono text-xs">
+                        {item.contractNumber}
+                      </TableCell>
+                      <TableCell className="text-foreground py-3.5 font-medium">
+                        {item.candidateName ?? "—"}
+                      </TableCell>
+                      <TableCell className="py-3.5 tabular">
+                        {normalizePhoneToLocal(item.phone)}
+                      </TableCell>
+                      <TableCell className="py-3.5">
+                        <StatusBadge status={item.status} />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground py-3.5 text-xs">
+                        {item.submittedAt ? formatAgreementDate(item.submittedAt) : "—"}
+                      </TableCell>
+                      <TableCell className="px-4 py-3.5">
+                        <Button type="button" size="sm" variant="outline" asChild>
+                          <Link href={`/admin/${item.contractId}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
+
             {data && (
               <PaginationBar
                 page={data.page}

@@ -158,6 +158,8 @@ export interface ContractListItemDto {
   contractNumber: string;
   status: ContractStatus;
   candidateName?: string;
+  /** Mirrors FinanceContractListItemDto.workerNameAmharic. Rendered when present. */
+  candidateNameAmharic?: string;
   phone: string;
   currentAttemptNumber: number;
   bankAccountMasked?: string;
@@ -288,4 +290,10 @@ export interface FinanceContractListItemDto {
   signedAt?: string;
   documentHash?: string;
   hasSealedDocument: boolean;
+  /**
+   * Worker signing URL. Only returned at creation today, so the finance grid's
+   * Copy Link action renders when the list endpoint starts sending it and is
+   * absent until then.
+   */
+  inviteLink?: string;
 }

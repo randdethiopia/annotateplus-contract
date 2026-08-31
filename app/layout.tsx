@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Sans_Ethiopic } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono, Great_Vibes, Noto_Serif_Ethiopic } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 
@@ -13,15 +13,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const notoEthiopic = Noto_Sans_Ethiopic({
+const notoEthiopic = Noto_Serif_Ethiopic({
   variable: "--font-noto-ethiopic",
   subsets: ["ethiopic"],
   weight: ["400", "500", "700"],
 });
 
+// Shared so the signing portal's live preview and the sealed PDF render the same
+// hand. Loading it here means one font instance for both.
+const signatureFont = Great_Vibes({
+  variable: "--font-signature",
+  subsets: ["latin"],
+  weight: "400",
+});
+
 export const metadata: Metadata = {
   title: "AnnotatePlus Contract",
   description: "Task-based data annotation worker agreement",
+};
+
+// viewport-fit=cover is what makes env(safe-area-inset-*) non-zero on iOS —
+// without it the signing portal's pinned CTA sits under the home indicator.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -32,7 +48,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${notoEthiopic.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${notoEthiopic.variable} ${signatureFont.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

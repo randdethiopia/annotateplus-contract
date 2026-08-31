@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsFetching, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { reviewerApi, type ReviewerContractsParams } from "@/lib/api/reviewer.api";
 import type { RejectPayload } from "@/types/backend";
 
@@ -67,6 +67,24 @@ export function useReviewerKpis(token: string) {
       signedQuery.isLoading ||
       rejectedQuery.isLoading,
   };
+}
+
+/**
+ * Manual refresh for the review queue. Rows and the metric strip are backed by
+ * two different key families, so a refresh has to move both or the counts drift
+ * away from the rows they describe.
+ */
+export function useRefreshReviewerQueue() {
+  const queryClient = useQueryClient();
+  const fetchingContracts = useIsFetching({ queryKey: ["reviewer-contracts"] });
+  const fetchingKpis = useIsFetching({ queryKey: ["reviewer-kpis"] });
+
+  function refresh() {
+    queryClient.invalidateQueries({ queryKey: ["reviewer-contracts"] });
+    queryClient.invalidateQueries({ queryKey: ["reviewer-kpis"] });
+  }
+
+  return { refresh, isRefreshing: fetchingContracts + fetchingKpis > 0 };
 }
 
 export function useContractDossier(token: string, id: string) {

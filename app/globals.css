@@ -2,6 +2,10 @@
 @import "shadcn/tailwind.css";
 @plugin "tailwindcss-animate";
 
+/* Keep the dark variant class-gated. Removing this line would make Tailwind fall
+   back to prefers-color-scheme, and the `dark:` utilities baked into components/ui/*
+   would half-apply on a light-token page for anyone with a dark OS. Nothing ever
+   adds the .dark class, so today this variant is intentionally inert. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -9,8 +13,11 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-ethiopic: var(--font-noto-ethiopic);
+  --font-signature: var(--font-signature);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-active-rule: var(--sidebar-active-rule);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
@@ -26,18 +33,26 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+  --color-action: var(--action);
+  --color-action-foreground: var(--action-foreground);
+  --color-action-soft: var(--action-soft);
+  --color-gold: var(--gold);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
   --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-surface-subtle: var(--surface-subtle);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -45,79 +60,86 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  /* Ink-tinted elevation. `shadow-xs` is this app's signature depth across ~30
+     call sites, so retuning the token restyles all of them at once. */
+  --shadow-xs: 0 1px 2px 0 rgb(18 38 63 / 0.04), 0 1px 3px 0 rgb(18 38 63 / 0.06);
+  --shadow-sm: 0 1px 2px 0 rgb(18 38 63 / 0.05), 0 2px 6px -1px rgb(18 38 63 / 0.07);
+  --shadow-md: 0 2px 4px -1px rgb(18 38 63 / 0.05), 0 8px 20px -4px rgb(18 38 63 / 0.10);
+  --shadow-lg: 0 4px 8px -2px rgb(18 38 63 / 0.06), 0 16px 40px -8px rgb(18 38 63 / 0.14);
 }
 
+/*
+  "R&D Apex" — the standalone design system for AnnotatePlus Contract.
+
+  Three accents, each with exactly one job, so nothing competes:
+    · Gold      — brand-authority rules only (signing-portal logo bar, PageHeader).
+    · Emerald   — the active sidebar nav pill, and nothing else.
+    · Cobalt    — every interactive state (focus rings, links, filter pills, chips).
+  Obsidian navy carries the CTAs. The neutrals are one slate family end to end,
+  so the hairlines we kept never read warmer or cooler than the body copy.
+*/
 :root {
   --radius: 0.625rem;
-  --background: #F7F7F6;
-  --foreground: #1A4428;
-  --card: #FFFFFF;
-  --card-foreground: #1A4428;
-  --popover: #FFFFFF;
-  --popover-foreground: #1A4428;
-  --primary: #69B34C;
-  --primary-foreground: #FFFFFF;
-  --secondary: #F4F4F5;
-  --secondary-foreground: #1A4428;
-  --muted: #F4F4F5;
-  --muted-foreground: #5c6b5f;
-  --accent: #F4F4F5;
-  --accent-foreground: #1A4428;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #E8E8E7;
-  --input: #F4F4F5;
-  --ring: #69B34C;
-  --agar-navy: #1A4428;
-  --agar-gold: #D4A835;
-  --agar-orange: #FF4E11;
-  --agar-green: #69B34C;
-  --chart-1: #69B34C;
-  --chart-2: #D4A835;
-  --chart-3: #1A4428;
-  --chart-4: #FF4E11;
-  --chart-5: #3B6A22;
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #1A4428;
-  --sidebar-primary: #69B34C;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #69B34C1a;
-  --sidebar-accent-foreground: #3B6A22;
-  --sidebar-border: #E8E8E7;
-  --sidebar-ring: #69B34C;
-}
 
-.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  /* Canvas & surfaces — atmospheric cool slate */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface-subtle: #f1f5f9;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  /* Primary — deep obsidian navy. Every real CTA in the app. */
+  --primary: #0f172a;
+  --primary-hover: #1e293b;
+  --primary-foreground: #ffffff;
+
+  /* Action — electric cobalt, the interactive accent. Focus rings, links,
+     filter pills. Intentionally NOT shadcn's --accent (see below). */
+  --action: #2563eb;
+  --action-foreground: #ffffff;
+  --action-soft: #eff4fe;
+
+  /* Gold — brand authority. Left-accent rules on page and portal headers.
+     Never interactive: nothing gold is ever clickable. */
+  --gold: #d4a835;
+
+  /* shadcn semantics: --accent is the neutral hover surface used by
+     ghost/outline buttons, select items and menu rows. Keeping it neutral is
+     what stops `hover:bg-accent` from becoming a solid blue block. */
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #fef2f2;
+
+  --border: #e2e8f0;
+  --input: #f1f5f9;
+  --ring: #2563eb;
+
+  --chart-1: #2563eb;
+  --chart-2: #d97706;
+  --chart-3: #059669;
+  --chart-4: #ea580c;
+  --chart-5: #0f172a;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  /* Emerald active-nav pill. The rule is a shade darker than the fill so the
+     3px left edge still reads at a glance against the white rail. */
+  --sidebar-accent: #ecfdf5;
+  --sidebar-accent-foreground: #047857;
+  --sidebar-active-rule: #10b981;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #2563eb;
 }
 
 @layer base {
@@ -129,6 +151,12 @@
   }
 }
 
-.font-ethiopic {
-  font-family: var(--font-noto-ethiopic), sans-serif;
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Clears the iOS home indicator under a pinned bottom bar. Needs
+   viewport-fit=cover (set in app/layout.tsx) or the inset resolves to 0. */
+@utility pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
