@@ -23,7 +23,6 @@ export const SIGN_COPY = {
   },
   paymentDetails: { en: "Payout & bank details", am: "የክፍያ መረጃ" },
   bankName: { en: "Bank name", am: "የባንክ ስም" },
-  bankNameOther: { en: "Your bank's name", am: "የባንክዎ ስም" },
   accountHolder: { en: "Account holder name", am: "የሂሳብ ባለቤት ስም" },
   accountNumber: { en: "Bank account number", am: "የባንክ ሂሳብ ቁጥር" },
   faydaId: { en: "Fayda National ID photos", am: "የፋይዳ መታወቂያ ፎቶዎች" },
