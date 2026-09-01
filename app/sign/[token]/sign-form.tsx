@@ -12,7 +12,7 @@ import { Field } from "@/components/system/field";
 import { IdPhotoField } from "@/components/system/id-photo-field";
 import { useSubmitWorkerContract } from "@/lib/api/worker";
 import { ApiError } from "@/lib/api/client";
-import { BANK_OPTIONS, OTHER_BANK, parseBankName, resolveBankName } from "@/lib/banks";
+import { BANK_OPTIONS, parseBankName, resolveBankName } from "@/lib/banks";
 import {
   workerSubmitSchema,
   type WorkerSubmitInput,
@@ -40,7 +40,6 @@ const FIELD_ORDER: (keyof WorkerSubmitInput)[] = [
   "faydaFront",
   "faydaBack",
   "bankName",
-  "bankNameOther",
   "bankAccountHolderName",
   "bankAccountNumber",
   "agreedToTerms",
@@ -130,14 +129,11 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
       fullNameAmharic: "",
       residenceLocation: "",
       bankName: undefined,
-      bankNameOther: "",
       bankAccountHolderName: "",
       bankAccountNumber: "",
       agreedToTerms: false,
     },
   });
-
-  const selectedBank = useWatch({ control, name: "bankName" });
 
   // On a resubmission the backend returns what the candidate typed last time, so
   // they only need to replace the photos that were rejected. Consent is
@@ -151,8 +147,7 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
         fullNameEnglish: initialValues.fullNameEnglish ?? current.fullNameEnglish,
         fullNameAmharic: initialValues.fullNameAmharic ?? current.fullNameAmharic,
         residenceLocation: initialValues.residenceLocation ?? current.residenceLocation,
-        bankName: bank.bankName || current.bankName,
-        bankNameOther: bank.bankNameOther || current.bankNameOther,
+        bankName: bank || current.bankName,
         bankAccountHolderName:
           initialValues.bankAccountHolderName ?? current.bankAccountHolderName,
         bankAccountNumber: initialValues.bankAccountNumber ?? current.bankAccountNumber,
@@ -186,7 +181,7 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
         fullNameEnglish: values.fullNameEnglish,
         fullNameAmharic: values.fullNameAmharic,
         residenceLocation: values.residenceLocation,
-        bankName: resolveBankName(values.bankName, values.bankNameOther),
+        bankName: resolveBankName(values.bankName),
         bankAccountHolderName: values.bankAccountHolderName,
         bankAccountNumber: values.bankAccountNumber,
         faydaFront: values.faydaFront,
@@ -366,23 +361,6 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
               ))}
             </select>
           </Field>
-
-          {selectedBank === OTHER_BANK && (
-            <Field
-              id="bankNameOther"
-              label={SIGN_COPY.bankNameOther.en}
-              labelAmharic={SIGN_COPY.bankNameOther.am}
-              required
-              error={errors.bankNameOther?.message}
-            >
-              <Input
-                id="bankNameOther"
-                placeholder="Type your bank's full name"
-                aria-invalid={!!errors.bankNameOther}
-                {...register("bankNameOther")}
-              />
-            </Field>
-          )}
 
           <Field
             id="bankAccountHolderName"

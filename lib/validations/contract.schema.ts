@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BANK_VALUES, OTHER_BANK } from "@/lib/banks";
+import { BANK_VALUES } from "@/lib/banks";
 import { DEFAULT_TEMPLATE_ID } from "@/lib/contract-templates";
 
 export const loginSchema = z.object({
@@ -91,8 +91,6 @@ export const workerSubmitSchema = z
       .trim()
       .min(5, "Please enter your full address (city, sub-city, woreda)"),
     bankName: z.enum(BANK_VALUES, { error: "Please select your payout bank" }),
-    /** Only meaningful when bankName is OTHER; enforced by the superRefine below. */
-    bankNameOther: z.string().trim().optional(),
     bankAccountHolderName: z.string().trim().min(3, "Account holder name is required"),
     bankAccountNumber: z
       .string()
@@ -105,15 +103,6 @@ export const workerSubmitSchema = z
     agreedToTerms: z
       .boolean()
       .refine((v) => v === true, "You must agree to the contract terms to proceed"),
-  })
-  .superRefine((values, ctx) => {
-    if (values.bankName === OTHER_BANK && !values.bankNameOther?.trim()) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["bankNameOther"],
-        message: "Please type your bank's name",
-      });
-    }
   });
 
 export type WorkerSubmitInput = z.infer<typeof workerSubmitSchema>;
