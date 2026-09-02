@@ -34,8 +34,8 @@ function SignHeader({
     <header className="bg-card overflow-hidden rounded-2xl shadow-xs">
       <div className="border-gold flex flex-col items-start justify-between gap-4 border-l-4 px-5 py-4 sm:flex-row sm:items-center">
         <div className="flex min-w-0 items-center gap-3">
-          <BrandLogo className="h-8" />
-          <span className="bg-border h-8 w-px shrink-0" aria-hidden />
+          <BrandLogo size="md" />
+          <span className="bg-border h-9 w-px shrink-0" aria-hidden />
           <p className="text-foreground min-w-0 text-sm font-semibold text-balance">
             Candidate E-Signing Portal
           </p>

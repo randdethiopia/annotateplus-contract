@@ -59,9 +59,7 @@ export function AppHeader({
       )}
     >
       <div className="flex min-w-0 items-center gap-2.5">
-        <Link href={homeHref} className="shrink-0" aria-label="R&D Group home">
-          <BrandLogo className="h-7" />
-        </Link>
+        <BrandLogo size="sm" showLink href={homeHref} />
 
         {showNav ? (
           <nav

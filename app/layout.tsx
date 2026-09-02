@@ -28,8 +28,13 @@ const signatureFont = Great_Vibes({
 });
 
 export const metadata: Metadata = {
-  title: "AnnotatePlus Contract",
-  description: "Task-based data annotation worker agreement",
+  title: "R&D Group | AnnotatePlus Contract & Verification System",
+  description: "Task-based worker agreement e-signing and Fayda ID verification platform.",
+  icons: {
+    icon: "/logo/rd-group-logo.png",
+    shortcut: "/logo/rd-group-logo.png",
+    apple: "/logo/rd-group-logo.png",
+  },
 };
 
 // viewport-fit=cover is what makes env(safe-area-inset-*) non-zero on iOS —
