@@ -48,7 +48,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-card rounded-3xl p-8 shadow-xs">
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
-            <BrandLogo className="h-10" />
+            <BrandLogo size="lg" className="mx-auto mb-2" />
             <div>
               <h1 className="text-foreground text-lg font-bold tracking-tight">
                 AnnotatePlus Contract

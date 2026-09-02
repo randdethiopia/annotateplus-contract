@@ -29,7 +29,9 @@ function DocHeader() {
           {DOC_HEADER_TITLE}
         </h2>
       </div>
-      <BrandLogo className="h-10" />
+      {/* Fixed 40px to hold the agreement's print geometry, and never preloaded —
+          this document lives inside a sheet that is closed on first paint. */}
+      <BrandLogo size="md" className="h-10" priority={false} />
     </div>
   );
 }
