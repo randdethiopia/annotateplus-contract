@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import {
   AlertTriangle,
+  Bell,
   Check,
   IdCard,
   Landmark,
@@ -24,6 +25,7 @@ import { CopyValueButton } from "@/components/contracts/copy-value-button";
 import { DossierSkeleton } from "@/components/contracts/dossier-skeleton";
 import { IdCardLightbox } from "@/components/contracts/id-card-lightbox";
 import { RejectContractDialog } from "@/components/contracts/reject-contract-dialog";
+import { RemindButton } from "@/components/contracts/remind-button";
 import { SignedBanner } from "@/components/contracts/signed-banner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +38,9 @@ import {
   useRejectContract,
   useRetrySealing,
 } from "@/lib/hooks/use-reviewer";
+import { isRemindable, MAX_REMINDERS } from "@/lib/reminder-utils";
 import { canApprove, canRetrySealing } from "@/lib/status-actions";
+import { formatSignedDateTime } from "@/lib/format-date";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import { extractDossierBankFields } from "@/lib/dossier/bank-fields";
 import { ApiError } from "@/lib/api/client";
@@ -231,6 +235,37 @@ export default function HrDossierPage() {
       </div>
 
       {effectiveStatus === "SIGNED" && <SignedBanner documentHash={actionResult?.documentHash} />}
+
+      {/* At these statuses there is no attempt yet, so the panel below renders
+          nothing and this is the whole page — the nudge belongs up front. */}
+      {isRemindable(dossier.status) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="text-muted-foreground size-4 shrink-0" aria-hidden />
+              Awaiting candidate submission
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-end justify-between gap-4">
+            <div className="space-y-3">
+              <p className="text-muted-foreground text-sm">
+                {dossier.status === "VIEWED"
+                  ? "The candidate opened the signing link but has not submitted their details yet."
+                  : "The invitation SMS was sent but the candidate has not opened the signing link yet."}
+              </p>
+              <DetailItem
+                label="Reminders sent"
+                value={
+                  dossier.lastReminderSentAt
+                    ? `${dossier.reminderCount ?? 0} of ${MAX_REMINDERS} · Last sent ${formatSignedDateTime(dossier.lastReminderSentAt)}`
+                    : `${dossier.reminderCount ?? 0} of ${MAX_REMINDERS}`
+                }
+              />
+            </div>
+            <RemindButton contract={dossier} surface="reviewer" appearance="button" />
+          </CardContent>
+        </Card>
+      )}
 
       {latestAttempt && (
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">

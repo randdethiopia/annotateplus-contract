@@ -14,8 +14,10 @@ import { StatusBadge } from "@/components/system/status-badge";
 import { SignedBanner } from "@/components/contracts/signed-banner";
 import { ContractDocument } from "@/components/contracts/contract-document";
 import { CopyValueButton } from "@/components/contracts/copy-value-button";
+import { RemindButton } from "@/components/contracts/remind-button";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useDownloadFinanceDocument } from "@/lib/hooks/use-finance";
+import { isRemindable, MAX_REMINDERS } from "@/lib/reminder-utils";
 import { canFinanceDownload } from "@/lib/status-actions";
 import { formatAgreementDate, formatSignedDateTime } from "@/lib/format-date";
 import { normalizePhoneToLocal } from "@/lib/phone";
@@ -131,6 +133,20 @@ export function FinanceDetailSheet({
                   <Row label="Signed at" value={formatSignedDateTime(contract.signedAt)} />
                 )}
               </div>
+
+              {isRemindable(contract.status) && (
+                <div className="bg-card flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4 shadow-xs">
+                  <Row
+                    label="Reminders sent"
+                    value={
+                      contract.lastReminderSentAt
+                        ? `${contract.reminderCount ?? 0} of ${MAX_REMINDERS} · Last sent ${formatSignedDateTime(contract.lastReminderSentAt)}`
+                        : `${contract.reminderCount ?? 0} of ${MAX_REMINDERS}`
+                    }
+                  />
+                  <RemindButton contract={contract} surface="finance" appearance="button" />
+                </div>
+              )}
 
               {canFinanceDownload(contract.status) && contract.hasSealedDocument && (
                 <Button

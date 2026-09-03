@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronRight } from "lucide-react";
+import { RemindButton } from "@/components/contracts/remind-button";
 import { StatusDotLabel } from "@/components/system/status-badge";
 import { SURFACE_CARD } from "@/components/system/surface";
 import { formatAgreementDate } from "@/lib/format-date";
@@ -115,23 +116,24 @@ export function HrDataTable({ items }: { items: ContractListItemDto[] }) {
 
   return (
     <>
-      {/* Below lg the seven columns become one card per candidate. The whole
-          card is the link, so the touch target is the card rather than a 28px
-          button, and there is no nested interactive inside it. */}
+      {/* Below lg the seven columns become one card per candidate. The card
+          carries its own actions (a reminder can be sent from here), and a
+          button nested inside a card-wide link is invalid markup — so the
+          identity header is the link and the footer holds the actions, matching
+          the finance cards. It stays a link rather than a button so
+          middle-click and open-in-new-tab keep working. */}
       <ul className="space-y-3 lg:hidden">
-        {items.map((item) => (
-          <li key={item.contractId}>
-            <Link
-              href={`/hr/${item.contractId}`}
-              className={cn(
-                SURFACE_CARD,
-                "block p-4 transition-colors hover:bg-slate-50/70 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:ring-offset-2 focus-visible:outline-none"
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
+        {items.map((item) => {
+          const href = `/hr/${item.contractId}`;
+          return (
+            <li key={item.contractId} className={cn(SURFACE_CARD, "p-4")}>
+              <Link
+                href={href}
+                className="-m-1 flex items-start justify-between gap-3 rounded-lg p-1 transition-colors hover:bg-slate-50/70 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:outline-none"
+              >
                 <CandidateIdentity item={item} />
                 <StatusDotLabel status={item.status} />
-              </div>
+              </Link>
 
               <div className="mt-3.5 flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -149,13 +151,20 @@ export function HrDataTable({ items }: { items: ContractListItemDto[] }) {
                 </span>
               </div>
 
-              <span className="mt-3 flex items-center justify-end gap-1 text-xs font-semibold text-slate-900">
-                Review
-                <ChevronRight className="size-3.5" aria-hidden />
-              </span>
-            </Link>
-          </li>
-        ))}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <RemindButton contract={item} surface="reviewer" />
+                {/* ml-auto keeps Review right-aligned when there is no reminder. */}
+                <Link
+                  href={href}
+                  className="ml-auto inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-medium whitespace-nowrap text-white transition-colors hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:ring-offset-2 focus-visible:outline-none"
+                >
+                  Review
+                  <ChevronRight className="size-3.5" aria-hidden />
+                </Link>
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       {/* The grid needs ~900px to breathe, so it appears only from lg. */}
@@ -201,17 +210,20 @@ export function HrDataTable({ items }: { items: ContractListItemDto[] }) {
                   <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500">
                     <SubmittedLabel item={item} />
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    {/* A real link, so the row stays keyboard-reachable and
-                        middle-click/open-in-new-tab keep working. */}
-                    <Link
-                      href={href}
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-medium whitespace-nowrap text-white transition-colors hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:ring-offset-2 focus-visible:outline-none"
-                    >
-                      Review
-                      <span aria-hidden>→</span>
-                    </Link>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <RemindButton contract={item} surface="reviewer" />
+                      {/* A real link, so the row stays keyboard-reachable and
+                          middle-click/open-in-new-tab keep working. */}
+                      <Link
+                        href={href}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-medium whitespace-nowrap text-white transition-colors hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:ring-offset-2 focus-visible:outline-none"
+                      >
+                        Review
+                        <span aria-hidden>→</span>
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               );

@@ -7,6 +7,7 @@ import type {
   Paginated,
   RejectPayload,
   RejectResponseData,
+  RemindContractResponse,
   RetrySealingResponseData,
 } from "@/types/backend";
 
@@ -62,6 +63,13 @@ export const reviewerApi = {
 
   retrySealing(token: string, contractId: string): Promise<RetrySealingResponseData> {
     return api<RetrySealingResponseData>(`/reviewer/contracts/${contractId}/retry-sealing`, {
+      method: "POST",
+      token,
+    });
+  },
+
+  remindContract(token: string, contractId: string): Promise<RemindContractResponse> {
+    return api<RemindContractResponse>(`/reviewer/contracts/${contractId}/remind`, {
       method: "POST",
       token,
     });

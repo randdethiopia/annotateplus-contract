@@ -167,6 +167,14 @@ export interface ContractListItemDto {
   bankAccountHolderName?: string;
   submittedAt?: string;
   createdAt: string;
+  /**
+   * Reminder SMS bookkeeping. Absent until the backend ships the reminder
+   * endpoints — read through `getReminderState`, which treats absence as
+   * "never reminded" rather than blocking the action.
+   */
+  reminderCount?: number;
+  lastReminderSentAt?: string;
+  nextReminderAt?: string;
 }
 
 export interface AttemptSummaryDto {
@@ -224,6 +232,10 @@ export interface ContractDossierDto {
   bankAccountNumber?: string;
   approvedBy?: string;
   approvedAt?: string;
+  /** See the note on ContractListItemDto — same fields, same graceful absence. */
+  reminderCount?: number;
+  lastReminderSentAt?: string;
+  nextReminderAt?: string;
 }
 
 export interface ApproveResponseData {
@@ -304,4 +316,22 @@ export interface FinanceContractListItemDto {
    * absent until then.
    */
   inviteLink?: string;
+  /** See the note on ContractListItemDto — same fields, same graceful absence. */
+  reminderCount?: number;
+  lastReminderSentAt?: string;
+  nextReminderAt?: string;
+}
+
+/**
+ * Outcome of an SMS nudge to a candidate who was invited but has not submitted.
+ * Shared by the reviewer and finance remind endpoints — the cooldown in
+ * `nextReminderAt` is server-authoritative and the client never recomputes it.
+ */
+export interface RemindContractResponse {
+  contractId: string;
+  reminderCount: number;
+  lastReminderSentAt: string;
+  nextReminderAt: string;
+  /** Absent on backends that dispatch out of band, like CreateContractResponseData. */
+  smsStatus?: SmsDispatchStatus;
 }
