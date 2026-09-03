@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
-import { CommandBar, type QueueFilterValue, type QueueTab } from "@/components/system/command-bar";
+import { CommandBar, type QueueTab } from "@/components/system/command-bar";
 import { MetricsStrip } from "@/components/system/metrics-strip";
-import { HrDataTable } from "@/components/hr/hr-data-table";
+import { QueueShell } from "@/components/system/queue-shell";
+import { RESULTS_REGION_ID } from "@/components/system/workstation";
+import { HrDataTable, HrDataTableSkeleton } from "@/components/hr/hr-data-table";
 import { EmptyState } from "@/components/system/empty-state";
 import { ExportReviewerCsvButton } from "@/components/contracts/export-reviewer-csv-button";
 import { PaginationBar } from "@/components/contracts/pagination-bar";
@@ -15,10 +16,12 @@ import {
   useReviewerContracts,
   useReviewerKpis,
 } from "@/lib/hooks/use-reviewer";
+import { useWorkstationParams } from "@/lib/hooks/use-workstation-params";
+import { useClampPage } from "@/lib/hooks/use-clamp-page";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
-const HR_TABS = (needsReview?: number): QueueTab[] => [
+const HR_TABS = (needsReview: number): QueueTab[] => [
   { value: "ALL", label: "All" },
   { value: "PENDING_REVIEW", label: "Needs Review", count: needsReview },
   { value: "RESUBMISSION_REQUIRED", label: "Resubmissions" },
@@ -28,22 +31,26 @@ const HR_TABS = (needsReview?: number): QueueTab[] => [
 
 export default function HrPage() {
   const { token } = useAuth();
-  const [status, setStatus] = useState<QueueFilterValue>("PENDING_REVIEW");
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const limit = 20;
+  // The URL is the only store for queue state — no useState mirrors it.
+  const { status, search, page, limit, setStatus, setSearch, setPage, setLimit, clearSearch } =
+    useWorkstationParams({ defaultStatus: "PENDING_REVIEW" });
 
   const kpis = useReviewerKpis(token ?? "");
   const { refresh, isRefreshing } = useRefreshReviewerQueue();
-  const { data, isLoading, isError, error } = useReviewerContracts(token ?? "", {
-    status: status === "ALL" ? undefined : status,
-    search: search || undefined,
-    page,
-    limit,
-  });
+  const { data, isPending, isFetching, isPlaceholderData, isError, error } = useReviewerContracts(
+    token ?? "",
+    { status, search: search || undefined, page, limit }
+  );
 
   const items = data?.items ?? [];
   const hasFilters = !!search || status !== "ALL";
+
+  const { isCorrecting } = useClampPage({
+    page,
+    totalPages: data?.totalPages,
+    isSettled: !isFetching && !isPlaceholderData,
+    onClamp: setPage,
+  });
 
   return (
     <div className="space-y-6">
@@ -55,7 +62,10 @@ export default function HrPage() {
             into a ragged stack. */}
         <div className="flex w-full items-center gap-2 sm:w-auto">
           <ExportReviewerCsvButton
-            items={items}
+            token={token ?? ""}
+            status={status}
+            search={search || undefined}
+            total={data?.total ?? 0}
             fileName="hr-contracts.csv"
             className="flex-1 sm:flex-none"
           />
@@ -106,51 +116,76 @@ export default function HrPage() {
         <CommandBar
           search={search}
           onSearchChange={setSearch}
-          onSearchCommit={() => setPage(1)}
+          onClearSearch={clearSearch}
           status={status}
-          onStatusChange={(value) => {
-            setStatus(value);
-            setPage(1);
-          }}
-          tabs={HR_TABS(kpis.isLoading ? undefined : kpis.pendingReview)}
+          onStatusChange={setStatus}
+          tabs={HR_TABS(kpis.pendingReview)}
           searchLabel="Search the verification queue"
         />
 
-        {isError ? (
-          <EmptyState
-            icon={<AlertTriangle className="text-destructive size-5" />}
-            title="Could not load the review queue"
-            description={
-              error instanceof ApiError ? error.message : "Please check your connection and retry."
-            }
-            action={
-              <Button type="button" variant="outline" onClick={refresh}>
-                <RefreshCw className="size-4" />
-                Try again
-              </Button>
-            }
-          />
-        ) : (
-          <>
-            <HrDataTable
-              items={items}
-              isLoading={isLoading}
-              emptyTitle={
+        <QueueShell
+          id={RESULTS_REGION_ID}
+          isPending={isPending || isCorrecting}
+          isFetching={isFetching}
+          isError={isError}
+          hasData={!!data}
+          isEmpty={items.length === 0}
+          skeleton={<HrDataTableSkeleton />}
+          error={
+            <EmptyState
+              icon={<AlertTriangle className="text-destructive size-5" />}
+              title="Could not load the review queue"
+              description={
+                error instanceof ApiError
+                  ? error.message
+                  : "Please check your connection and retry."
+              }
+              action={
+                <Button type="button" variant="outline" onClick={refresh}>
+                  <RefreshCw className="size-4" />
+                  Try again
+                </Button>
+              }
+            />
+          }
+          empty={
+            <EmptyState
+              title={
                 hasFilters
                   ? "No candidate contracts match your filter."
                   : "No candidate contracts yet."
               }
+              description={
+                hasFilters ? "Try a different status filter, or clear the search box." : undefined
+              }
+              action={
+                hasFilters ? (
+                  <Button type="button" variant="outline" onClick={clearSearch}>
+                    Clear search
+                  </Button>
+                ) : undefined
+              }
             />
+          }
+          notice={
+            <p className="bg-surface-subtle text-muted-foreground mb-3 rounded-lg px-3 py-2 text-xs">
+              Couldn&apos;t refresh — showing the last result.
+            </p>
+          }
+        >
+          <HrDataTable items={items} />
+        </QueueShell>
 
-            {data && data.totalPages > 1 && (
-              <PaginationBar
-                page={data.page}
-                totalPages={data.totalPages}
-                total={data.total}
-                onPageChange={setPage}
-              />
-            )}
-          </>
+        {!isError && data && (
+          <PaginationBar
+            page={page}
+            limit={limit}
+            total={data.total}
+            totalPages={data.totalPages}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
+            isFetching={isFetching}
+          />
         )}
       </div>
     </div>

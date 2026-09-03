@@ -1,44 +1,48 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ClipboardCheck, Inbox, Wallet } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/system/page-header";
-import { StatusBadge } from "@/components/system/status-badge";
 import { EmptyState } from "@/components/system/empty-state";
-import { Omnibar, type FilterValue } from "@/components/system/omnibar";
+import { QueueShell } from "@/components/system/queue-shell";
+import { RESULTS_REGION_ID } from "@/components/system/workstation";
+import {
+  CommandBar,
+  statusFilterLabel,
+  type QueueTab,
+} from "@/components/system/command-bar";
 import { PaginationBar } from "@/components/contracts/pagination-bar";
 import { StatusSummary } from "@/components/contracts/status-summary";
 import { ExportReviewerCsvButton } from "@/components/contracts/export-reviewer-csv-button";
 import { ContractTableSkeleton } from "@/components/contracts/contract-table-skeleton";
-import { ContractMobileCard } from "@/components/contracts/contract-mobile-card";
+import { AdminContractsTable } from "@/components/admin/admin-contracts-table";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useReviewerContracts } from "@/lib/hooks/use-reviewer";
-import { normalizePhoneToLocal } from "@/lib/phone";
-import { formatAgreementDate } from "@/lib/format-date";
+import { useReviewerContracts, useReviewerStatusCounts } from "@/lib/hooks/use-reviewer";
+import { useWorkstationParams } from "@/lib/hooks/use-workstation-params";
+import { useClampPage } from "@/lib/hooks/use-clamp-page";
 import { ApiError } from "@/lib/api/client";
+import type { ContractStatus } from "@/types/backend";
 
-const FILTER_PILLS: FilterValue[] = [
-  "ALL",
+const ADMIN_TABS: QueueTab[] = [
+  { value: "ALL", label: "All" },
+  // Two labels are shortened deliberately; the rest defer to STATUS_STYLE so
+  // they cannot drift from the badges in the rows they select for.
+  { value: "PENDING_REVIEW", label: "Needs Review" },
+  { value: "INVITED", label: statusFilterLabel("INVITED") },
+  { value: "RESUBMISSION_REQUIRED", label: "Resubmissions" },
+  { value: "SIGNED", label: statusFilterLabel("SIGNED") },
+  { value: "REJECTED", label: statusFilterLabel("REJECTED") },
+  { value: "EXPIRED", label: statusFilterLabel("EXPIRED") },
+];
+
+const SUMMARY_STATUSES: ContractStatus[] = [
   "PENDING_REVIEW",
-  "INVITED",
   "RESUBMISSION_REQUIRED",
   "SIGNED",
   "REJECTED",
-  "EXPIRED",
 ];
-
-const HEAD_CLASS = "text-muted-foreground text-[11px] font-semibold tracking-wider uppercase";
 
 const SHORTCUTS = [
   {
@@ -59,20 +63,33 @@ const SHORTCUTS = [
 
 export default function AdminPage() {
   const { user, token } = useAuth();
-  const [status, setStatus] = useState<FilterValue>("ALL");
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const limit = 20;
+  const { status, search, page, limit, setStatus, setSearch, setPage, setLimit, clearSearch } =
+    useWorkstationParams({ defaultStatus: "ALL" });
 
-  const { data, isLoading, isError, error } = useReviewerContracts(token ?? "", {
-    status: status === "ALL" ? undefined : status,
-    search: search || undefined,
-    page,
-    limit,
-  });
+  const { data, isPending, isFetching, isPlaceholderData, isError, error, refetch } =
+    useReviewerContracts(token ?? "", {
+      status,
+      search: search || undefined,
+      page,
+      limit,
+    });
+
+  // Totals for the whole filtered set, not the rows on screen.
+  const { counts, isLoading: isCountsLoading } = useReviewerStatusCounts(
+    token ?? "",
+    SUMMARY_STATUSES,
+    search || undefined
+  );
 
   const items = data?.items ?? [];
   const hasFilters = !!search || status !== "ALL";
+
+  const { isCorrecting } = useClampPage({
+    page,
+    totalPages: data?.totalPages,
+    isSettled: !isFetching && !isPlaceholderData,
+    onClamp: setPage,
+  });
 
   return (
     <div className="space-y-8">
@@ -118,115 +135,94 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <Omnibar
+        <CommandBar
           search={search}
           onSearchChange={setSearch}
-          onSearchCommit={() => setPage(1)}
+          onClearSearch={clearSearch}
           status={status}
-          onStatusChange={(v) => {
-            setStatus(v);
-            setPage(1);
-          }}
-          pills={FILTER_PILLS}
-          actions={<ExportReviewerCsvButton items={items} fileName="all-contracts.csv" />}
+          onStatusChange={setStatus}
+          tabs={ADMIN_TABS}
+          searchLabel="Search all contracts"
+          actions={
+            <ExportReviewerCsvButton
+              token={token ?? ""}
+              status={status}
+              search={search || undefined}
+              total={data?.total ?? 0}
+              fileName="all-contracts.csv"
+            />
+          }
         />
 
-        {!isLoading && !isError && data && (
-          <StatusSummary
-            items={data.items}
-            statuses={["PENDING_REVIEW", "RESUBMISSION_REQUIRED", "SIGNED", "REJECTED"]}
-          />
-        )}
+        {/* Rendered whenever counts exist, not gated on the list query — gating
+            it would unmount the tiles on every transition, a flicker of its own. */}
+        <StatusSummary
+          counts={counts}
+          statuses={SUMMARY_STATUSES}
+          isLoading={isCountsLoading}
+        />
 
-        {isLoading ? (
-          <ContractTableSkeleton variant="admin" />
-        ) : isError ? (
-          <EmptyState
-            icon={<AlertTriangle className="text-destructive size-5" />}
-            title="Could not load contracts"
-            description={
-              error instanceof ApiError ? error.message : "Please check your connection and retry."
-            }
-          />
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={<Inbox className="size-5" />}
-            title={hasFilters ? "No contracts match these filters" : "No contracts yet"}
-            description={
-              hasFilters
-                ? "Try a different status filter, or clear the search box."
-                : "Contracts created in the finance console appear here."
-            }
-          />
-        ) : (
-          <>
-            <div className="space-y-3 sm:hidden">
-              {items.map((item) => (
-                <ContractMobileCard
-                  key={item.contractId}
-                  contractNumber={item.contractNumber}
-                  status={item.status}
-                  primaryLabel={item.candidateName ?? "Awaiting submission"}
-                  phone={item.phone}
-                  href={`/admin/${item.contractId}`}
-                  actionLabel="View"
-                />
-              ))}
-            </div>
+        <QueueShell
+          id={RESULTS_REGION_ID}
+          isPending={isPending || isCorrecting}
+          isFetching={isFetching}
+          isError={isError}
+          hasData={!!data}
+          isEmpty={items.length === 0}
+          skeleton={<ContractTableSkeleton variant="admin" />}
+          error={
+            <EmptyState
+              icon={<AlertTriangle className="text-destructive size-5" />}
+              title="Could not load contracts"
+              description={
+                error instanceof ApiError
+                  ? error.message
+                  : "Please check your connection and retry."
+              }
+              action={
+                <Button type="button" variant="outline" onClick={() => refetch()}>
+                  Try again
+                </Button>
+              }
+            />
+          }
+          empty={
+            <EmptyState
+              icon={<Inbox className="size-5" />}
+              title={hasFilters ? "No contracts match these filters" : "No contracts yet"}
+              description={
+                hasFilters
+                  ? "Try a different status filter, or clear the search box."
+                  : "Contracts created in the finance console appear here."
+              }
+              action={
+                hasFilters ? (
+                  <Button type="button" variant="outline" onClick={clearSearch}>
+                    Clear search
+                  </Button>
+                ) : undefined
+              }
+            />
+          }
+          notice={
+            <p className="bg-surface-subtle text-muted-foreground mb-3 rounded-lg px-3 py-2 text-xs">
+              Couldn&apos;t refresh — showing the last result.
+            </p>
+          }
+        >
+          <AdminContractsTable items={items} />
+        </QueueShell>
 
-            <div className="bg-card hidden overflow-hidden rounded-2xl shadow-xs sm:block">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border bg-surface-subtle/60 hover:bg-surface-subtle/60 border-b">
-                    <TableHead className={`px-4 ${HEAD_CLASS}`}>Contract #</TableHead>
-                    <TableHead className={HEAD_CLASS}>Candidate</TableHead>
-                    <TableHead className={HEAD_CLASS}>Phone</TableHead>
-                    <TableHead className={HEAD_CLASS}>Status</TableHead>
-                    <TableHead className={HEAD_CLASS}>Submitted</TableHead>
-                    <TableHead className="w-20 px-4" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow
-                      key={item.contractId}
-                      className="border-border hover:bg-surface-subtle/70 border-b last:border-0"
-                    >
-                      <TableCell className="text-muted-foreground px-4 py-3.5 font-mono text-xs">
-                        {item.contractNumber}
-                      </TableCell>
-                      <TableCell className="text-foreground py-3.5 font-medium">
-                        {item.candidateName ?? "—"}
-                      </TableCell>
-                      <TableCell className="py-3.5 tabular">
-                        {normalizePhoneToLocal(item.phone)}
-                      </TableCell>
-                      <TableCell className="py-3.5">
-                        <StatusBadge status={item.status} />
-                      </TableCell>
-                      <TableCell className="text-muted-foreground py-3.5 text-xs">
-                        {item.submittedAt ? formatAgreementDate(item.submittedAt) : "—"}
-                      </TableCell>
-                      <TableCell className="px-4 py-3.5">
-                        <Button type="button" size="sm" variant="outline" asChild>
-                          <Link href={`/admin/${item.contractId}`}>View</Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {data && (
-              <PaginationBar
-                page={data.page}
-                totalPages={data.totalPages}
-                total={data.total}
-                onPageChange={setPage}
-              />
-            )}
-          </>
+        {!isError && data && (
+          <PaginationBar
+            page={page}
+            limit={limit}
+            total={data.total}
+            totalPages={data.totalPages}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
+            isFetching={isFetching}
+          />
         )}
       </div>
     </div>

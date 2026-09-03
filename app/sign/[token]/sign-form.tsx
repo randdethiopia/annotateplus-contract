@@ -17,6 +17,7 @@ import {
   workerSubmitSchema,
   type WorkerSubmitInput,
 } from "@/lib/validations/contract.schema";
+import { scrollIntoViewRespectingMotion } from "@/lib/scroll-into-view";
 import { cn } from "@/lib/utils";
 import { SIGN_COPY } from "./copy";
 import type { ValidationIssue, WorkerSubmittedData } from "@/types/backend";
@@ -166,8 +167,10 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
       document.getElementById(`field-${firstKey}`) ?? document.getElementById(firstKey);
     if (!target) return;
 
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+    // Was `behavior: reduceMotion ? "auto" : "smooth"`, which did nothing:
+    // <html> carries `scroll-smooth`, so "auto" resolves to the computed CSS
+    // scroll-behavior and animated anyway. The helper uses "instant".
+    scrollIntoViewRespectingMotion(target, { block: "center" });
     target.querySelector<HTMLElement>("input, select, textarea, button")?.focus({
       preventScroll: true,
     });

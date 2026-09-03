@@ -11,7 +11,8 @@ import type {
 } from "@/types/backend";
 
 export interface ReviewerContractsParams {
-  status?: ContractStatus;
+  /** "ALL" is stripped here rather than at every call site — matching finance.api.ts. */
+  status?: ContractStatus | "ALL";
   search?: string;
   page: number;
   limit: number;
@@ -19,7 +20,7 @@ export interface ReviewerContractsParams {
 
 function buildContractsQuery(params: ReviewerContractsParams): string {
   const query = new URLSearchParams();
-  if (params.status) query.set("status", params.status);
+  if (params.status && params.status !== "ALL") query.set("status", params.status);
   if (params.search?.trim()) query.set("search", params.search.trim());
   query.set("page", String(params.page));
   query.set("limit", String(params.limit));
