@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { Check, FileDown, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { RemindButton } from "@/components/contracts/remind-button";
 import { StatusDotLabel } from "@/components/system/status-badge";
 import { SURFACE_CARD } from "@/components/system/surface";
 import { formatAgreementDate } from "@/lib/format-date";
 import { getInitials } from "@/lib/initials";
 import { normalizePhoneToLocal } from "@/lib/phone";
+import { isRemindable } from "@/lib/reminder-utils";
 import { cn } from "@/lib/utils";
 import type { FinanceContractListItemDto } from "@/types/backend";
 
@@ -79,6 +81,36 @@ function BankAndPayout({ item }: { item: FinanceContractListItemDto }) {
   );
 }
 
+// Extracted so its `copied` state no longer sits above conditional returns.
+function CopyLinkButton({ item }: { item: FinanceContractListItemDto }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={async (e) => {
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(item.inviteLink!);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+          toast.success("Signing link copied");
+        } catch {
+          toast.error("Could not copy — your browser blocked clipboard access.");
+        }
+      }}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-slate-700 transition-colors hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:outline-none"
+    >
+      {copied ? (
+        <Check className="size-3.5 shrink-0 text-emerald-600" aria-hidden />
+      ) : (
+        <Link2 className="size-3.5 shrink-0" aria-hidden />
+      )}
+      Copy Link
+    </button>
+  );
+}
+
 function RowActions({
   item,
   isDownloading,
@@ -88,8 +120,6 @@ function RowActions({
   isDownloading: boolean;
   onDownload: (item: FinanceContractListItemDto) => void;
 }) {
-  const [copied, setCopied] = useState(false);
-
   // Gate on hasSealedDocument too: a contract can be SIGNED before the PDF is
   // sealed, and offering the download then just 404s.
   if (item.status === "SIGNED" && item.hasSealedDocument) {
@@ -114,34 +144,6 @@ function RowActions({
     );
   }
 
-  // Only offered when the list payload actually carries the link.
-  if ((item.status === "INVITED" || item.status === "DRAFT") && item.inviteLink) {
-    return (
-      <button
-        type="button"
-        onClick={async (e) => {
-          e.stopPropagation();
-          try {
-            await navigator.clipboard.writeText(item.inviteLink!);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-            toast.success("Signing link copied");
-          } catch {
-            toast.error("Could not copy — your browser blocked clipboard access.");
-          }
-        }}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-slate-700 transition-colors hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:outline-none"
-      >
-        {copied ? (
-          <Check className="size-3.5 shrink-0 text-emerald-600" aria-hidden />
-        ) : (
-          <Link2 className="size-3.5 shrink-0" aria-hidden />
-        )}
-        Copy Link
-      </button>
-    );
-  }
-
   if (item.status === "PENDING_REVIEW") {
     return (
       <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-amber-700">
@@ -150,7 +152,22 @@ function RowActions({
     );
   }
 
-  return null;
+  // Everything below can coexist: an INVITED row offers both the link and the
+  // nudge. Copy Link is only offered when the list payload actually carries the
+  // link, and `isRemindable` is what RemindButton itself gates on — so this
+  // still collapses to nothing rather than an empty flex item.
+  const showCopyLink =
+    (item.status === "INVITED" || item.status === "DRAFT") && !!item.inviteLink;
+  const showRemind = isRemindable(item.status);
+
+  if (!showCopyLink && !showRemind) return null;
+
+  return (
+    <div className="flex items-center justify-end gap-2">
+      {showCopyLink && <CopyLinkButton item={item} />}
+      {showRemind && <RemindButton contract={item} surface="finance" />}
+    </div>
+  );
 }
 
 // ── Public component ──────────────────────────────────────────────────────────

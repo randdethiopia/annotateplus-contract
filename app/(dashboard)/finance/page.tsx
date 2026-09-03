@@ -52,6 +52,14 @@ export default function FinancePage() {
   const items = data?.items ?? [];
   const hasFilters = !!search || status !== "ALL";
 
+  // `selected` is a snapshot taken at click time, so cache patches — a sent
+  // reminder, for instance — would never reach the open sheet. Re-read it from
+  // the live list, falling back to the snapshot so paging or filtering while
+  // the sheet is open does not slam it shut.
+  const liveSelected = selected
+    ? (items.find((item) => item.contractId === selected.contractId) ?? selected)
+    : null;
+
   const { isCorrecting } = useClampPage({
     page,
     totalPages: data?.totalPages,
@@ -218,7 +226,10 @@ export default function FinancePage() {
         )}
       </div>
 
-      <FinanceDetailSheet contract={selected} onOpenChange={(open) => !open && setSelected(null)} />
+      <FinanceDetailSheet
+        contract={liveSelected}
+        onOpenChange={(open) => !open && setSelected(null)}
+      />
     </div>
   );
 }

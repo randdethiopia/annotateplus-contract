@@ -8,6 +8,7 @@ import type {
   CreateContractResponseData,
   FinanceContractListItemDto,
   Paginated,
+  RemindContractResponse,
 } from "@/types/backend";
 import type { CreateContractInput } from "@/lib/validations/contract.schema";
 
@@ -52,6 +53,13 @@ export const financeApi = {
       method: "POST",
       token,
       body,
+    });
+  },
+
+  remindContract(token: string, contractId: string): Promise<RemindContractResponse> {
+    return api<RemindContractResponse>(`/finance/contracts/${contractId}/remind`, {
+      method: "POST",
+      token,
     });
   },
 
