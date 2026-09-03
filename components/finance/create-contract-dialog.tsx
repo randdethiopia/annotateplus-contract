@@ -63,16 +63,18 @@ const SMS_STATUS: Record<SmsDispatchStatus, { label: string; className: string }
  */
 function TemplateSummary({ template }: { template: ContractTemplate }) {
   return (
-    <span className="flex min-w-0 flex-1 items-start gap-2.5">
-      <FileText className="mt-0.5 size-4 shrink-0" aria-hidden />
-      <span className="flex min-w-0 flex-col items-start gap-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{template.title}</span>
-          <Badge variant="secondary">Official Active Template</Badge>
+    <span className="flex w-full flex-col items-start gap-1.5 text-left">
+      <span className="flex w-full items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-2">
+          <FileText className="size-4 shrink-0" aria-hidden />
+          <span className="text-foreground truncate text-sm font-medium">{template.title}</span>
         </span>
-        <span className="text-muted-foreground text-xs leading-snug">
-          {template.description}
-        </span>
+        <Badge variant="secondary" className="shrink-0 text-[11px] font-normal">
+          Official Active Template
+        </Badge>
+      </span>
+      <span className="text-muted-foreground line-clamp-2 pl-6 text-left text-xs leading-relaxed">
+        {template.description}
       </span>
     </span>
   );
@@ -246,7 +248,7 @@ export function CreateContractDialog() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
               <Field id="templateId" label="Agreement Template" error={errors.templateId?.message}>
                 <Controller
                   control={control}
@@ -258,7 +260,13 @@ export function CreateContractDialog() {
                       <SelectTrigger
                         id="templateId"
                         aria-invalid={!!errors.templateId}
-                        className="h-auto w-full items-start py-2.5 text-left whitespace-normal"
+                        // The base trigger locks height via `data-[size=default]:h-10`
+                        // (select.tsx) — an unscoped `h-auto` loses that specificity
+                        // fight, so the override has to match the same modifier to
+                        // get deduped in. Same story for `*:data-[slot=select-value]`:
+                        // it's the only selector that reaches the value span, so
+                        // undoing its line-clamp/alignment has to go through it too.
+                        className="h-auto min-h-19 w-full items-start justify-between gap-2 p-3.5 text-left whitespace-normal data-[size=default]:h-auto *:data-[slot=select-value]:line-clamp-none *:data-[slot=select-value]:w-full *:data-[slot=select-value]:items-start"
                       >
                         {/* Rendering the summary here rather than letting
                             SelectValue clone the item keeps the trigger's layout
@@ -267,7 +275,11 @@ export function CreateContractDialog() {
                           <TemplateSummary template={selectedTemplate} />
                         </SelectValue>
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent
+                        position="popper"
+                        align="start"
+                        className="w-(--radix-select-trigger-width)"
+                      >
                         {CONTRACT_TEMPLATES.map((template) => (
                           <SelectItem key={template.id} value={template.id} className="py-2">
                             <TemplateSummary template={template} />
@@ -284,6 +296,7 @@ export function CreateContractDialog() {
                 label="Worker Mobile Phone Number"
                 hint="The capability signing link will be dispatched to this number via SMS."
                 error={errors.phone?.message}
+                className="pt-1.5"
               >
                 <Input
                   id="phone"
