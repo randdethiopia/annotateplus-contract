@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, FileDown, Link2, Loader2, SearchX } from "lucide-react";
+import { Check, FileDown, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { StatusDotLabel } from "@/components/system/status-badge";
 import { SURFACE_CARD } from "@/components/system/surface";
@@ -155,38 +155,22 @@ function RowActions({
 
 // ── Public component ──────────────────────────────────────────────────────────
 
+/**
+ * Rows only. The loading, empty and error states are owned by `QueueShell` —
+ * see the note on `HrDataTable`.
+ */
 export function FinanceTable({
   items,
-  isLoading,
-  emptyTitle = "No contracts match your filter.",
   downloadingId,
   onDownload,
   onSelect,
 }: {
   items: FinanceContractListItemDto[];
-  isLoading?: boolean;
-  emptyTitle?: string;
   /** contractId of the row whose sealed PDF is currently downloading. */
   downloadingId?: string;
   onDownload: (item: FinanceContractListItemDto) => void;
   onSelect: (item: FinanceContractListItemDto) => void;
 }) {
-  if (isLoading) return <FinanceTableSkeleton />;
-
-  if (items.length === 0) {
-    return (
-      <div className={cn(SURFACE_CARD, "px-6 py-16 text-center")}>
-        <span
-          className="mx-auto mb-3 flex size-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400"
-          aria-hidden
-        >
-          <SearchX className="size-5" />
-        </span>
-        <p className="text-sm font-medium text-slate-600">{emptyTitle}</p>
-      </div>
-    );
-  }
-
   return (
     <>
       {/* Below lg the six columns become one card per contract. */}
@@ -290,7 +274,7 @@ export function FinanceTable({
   );
 }
 
-function FinanceTableSkeleton() {
+export function FinanceTableSkeleton() {
   return (
     <div className={SURFACE_CARD} aria-busy="true" aria-label="Loading contracts">
       <div className="hidden h-10 border-b border-slate-200 bg-slate-50/60 lg:block" />

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, ChevronRight, SearchX } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { StatusDotLabel } from "@/components/system/status-badge";
 import { SURFACE_CARD } from "@/components/system/surface";
 import { formatAgreementDate } from "@/lib/format-date";
@@ -105,32 +105,13 @@ function SubmittedLabel({ item }: { item: ContractListItemDto }) {
 
 // ── Public component ──────────────────────────────────────────────────────────
 
-export function HrDataTable({
-  items,
-  isLoading,
-  emptyTitle = "No candidate contracts match your filter.",
-}: {
-  items: ContractListItemDto[];
-  isLoading?: boolean;
-  emptyTitle?: string;
-}) {
+/**
+ * Rows only. The loading, empty and error states are owned by `QueueShell`, so
+ * that the grid can stay mounted across a page click, filter switch or
+ * debounced search instead of being swapped for a skeleton.
+ */
+export function HrDataTable({ items }: { items: ContractListItemDto[] }) {
   const router = useRouter();
-
-  if (isLoading) return <HrDataTableSkeleton />;
-
-  if (items.length === 0) {
-    return (
-      <div className={cn(SURFACE_CARD, "px-6 py-16 text-center")}>
-        <span
-          className="mx-auto mb-3 flex size-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400"
-          aria-hidden
-        >
-          <SearchX className="size-5" />
-        </span>
-        <p className="text-sm font-medium text-slate-600">{emptyTitle}</p>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -242,7 +223,7 @@ export function HrDataTable({
   );
 }
 
-function HrDataTableSkeleton() {
+export function HrDataTableSkeleton() {
   return (
     <div className={SURFACE_CARD} aria-busy="true" aria-label="Loading the verification queue">
       <div className="hidden h-10 border-b border-slate-200 bg-slate-50/60 lg:block" />
