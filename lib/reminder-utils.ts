@@ -1,7 +1,7 @@
 import type { ContractStatus } from "@/types/backend";
 
 /** Backend-enforced cap. Mirrored here only so the UI can label the state. */
-export const MAX_REMINDERS = 2;
+export const MAX_REMINDERS = 3;
 
 /**
  * The one gate both queues read, so HR and finance can never drift apart.
