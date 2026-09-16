@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { CommandBar, type QueueTab } from "@/components/system/command-bar";
+import { CommandBar, statusFilterLabel, type QueueTab } from "@/components/system/command-bar";
 import { MetricsStrip } from "@/components/system/metrics-strip";
 import { EmptyState } from "@/components/system/empty-state";
 import { QueueShell } from "@/components/system/queue-shell";
@@ -73,6 +73,10 @@ export default function FinancePage() {
     { value: "PENDING_REVIEW", label: "Pending Review", count: kpis.pendingReview },
     { value: "INVITED", label: "Invited" },
     { value: "RESUBMISSION_REQUIRED", label: "Resubmissions" },
+    // Visibility only — renewal runs through the reviewer endpoint, so the
+    // action lives on /hr. No count: an extra limit:1 fan-out isn't earned on a
+    // surface that can't act on the rows.
+    { value: "EXPIRED", label: statusFilterLabel("EXPIRED") },
   ];
 
   function handleExport() {

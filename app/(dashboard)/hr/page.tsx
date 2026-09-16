@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, RefreshCw } from "lucide-react";
-import { CommandBar, type QueueTab } from "@/components/system/command-bar";
+import { CommandBar, statusFilterLabel, type QueueTab } from "@/components/system/command-bar";
 import { MetricsStrip } from "@/components/system/metrics-strip";
 import { QueueShell } from "@/components/system/queue-shell";
 import { RESULTS_REGION_ID } from "@/components/system/workstation";
@@ -21,12 +21,15 @@ import { useClampPage } from "@/lib/hooks/use-clamp-page";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
-const HR_TABS = (needsReview: number): QueueTab[] => [
+const HR_TABS = (needsReview: number, expired: number): QueueTab[] => [
   { value: "ALL", label: "All" },
   { value: "PENDING_REVIEW", label: "Needs Review", count: needsReview },
   { value: "RESUBMISSION_REQUIRED", label: "Resubmissions" },
   { value: "SIGNED", label: "Verified" },
   { value: "REJECTED", label: "Rejected" },
+  // Counted, unlike its neighbours: these rows are the queue's only actionable
+  // dead end, and the count is what tells HR there is renewing to be done.
+  { value: "EXPIRED", label: statusFilterLabel("EXPIRED"), count: expired },
 ];
 
 export default function HrPage() {
@@ -119,7 +122,7 @@ export default function HrPage() {
           onClearSearch={clearSearch}
           status={status}
           onStatusChange={setStatus}
-          tabs={HR_TABS(kpis.pendingReview)}
+          tabs={HR_TABS(kpis.pendingReview, kpis.expired)}
           searchLabel="Search the verification queue"
         />
 
@@ -173,7 +176,7 @@ export default function HrPage() {
             </p>
           }
         >
-          <HrDataTable items={items} />
+          <HrDataTable items={items} status={status} />
         </QueueShell>
 
         {!isError && data && (

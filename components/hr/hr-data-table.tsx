@@ -4,26 +4,43 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronRight } from "lucide-react";
 import { RemindButton } from "@/components/contracts/remind-button";
+import { RenewContractButton } from "@/components/contracts/renew-contract-button";
 import { StatusDotLabel } from "@/components/system/status-badge";
 import { SURFACE_CARD } from "@/components/system/surface";
 import { formatAgreementDate } from "@/lib/format-date";
 import { getInitials } from "@/lib/initials";
 import { normalizePhoneToLocal } from "@/lib/phone";
+import { isRenewable } from "@/lib/renew-utils";
 import { DEFAULT_MAX_ATTEMPTS } from "@/lib/status-actions";
 import { cn } from "@/lib/utils";
+import type { StatusFilter } from "@/lib/hooks/use-workstation-params";
 import type { ContractListItemDto } from "@/types/backend";
 
 const HEAD_CELL = "px-4 text-left align-middle font-semibold whitespace-nowrap";
 
-const COLUMNS = [
-  "Candidate",
-  "Contract #",
-  "Fayda Status",
-  "Payout Details",
-  "Status",
-  "Submitted",
-  "",
-] as const;
+/**
+ * Statuses that exist entirely before a candidate submits. On these queues the
+ * date column cannot be a submission date, so both the header and the cell
+ * switch to the invitation date rather than printing an em-dash under a
+ * "Submitted" heading.
+ */
+const PRE_SUBMISSION_FILTERS = new Set<StatusFilter>(["INVITED", "VIEWED", "EXPIRED"]);
+
+function dateColumnLabel(status: StatusFilter): string {
+  if (status === "INVITED") return "Invited";
+  return PRE_SUBMISSION_FILTERS.has(status) ? "Date" : "Submitted";
+}
+
+const COLUMNS = (dateLabel: string) =>
+  [
+    "Candidate",
+    "Contract #",
+    "Fayda Status",
+    "Payout Details",
+    "Status",
+    dateLabel,
+    "",
+  ] as const;
 
 // ── Cell fragments ────────────────────────────────────────────────────────────
 // Shared by the desktop grid and the mobile cards so the two renderings of the
@@ -100,8 +117,51 @@ function PayoutCell({ item }: { item: ContractListItemDto }) {
   );
 }
 
-function SubmittedLabel({ item }: { item: ContractListItemDto }) {
+/**
+ * Reads `createdAt` on the pre-submission queues so the value always agrees
+ * with the heading above it. Seeded rows can carry a `submittedAt` with no
+ * attempt behind it, so the active filter — not the presence of the field — is
+ * what decides which date this column means.
+ */
+function DateCell({ item, status }: { item: ContractListItemDto; status: StatusFilter }) {
+  if (PRE_SUBMISSION_FILTERS.has(status)) {
+    return <>{formatAgreementDate(item.createdAt)}</>;
+  }
   return <>{item.submittedAt ? formatAgreementDate(item.submittedAt) : "—"}</>;
+}
+
+/**
+ * The actions for one row. On a renewable row the emphasis swaps: reviewing a
+ * dossier with nothing in it is not the job to be done, renewing the link is.
+ */
+function RowActions({ item, href }: { item: ContractListItemDto; href: string }) {
+  const renewable = isRenewable(item);
+
+  return (
+    <>
+      <RemindButton contract={item} surface="reviewer" />
+      <RenewContractButton
+        contract={item}
+        candidateName={item.candidateName}
+        appearance={renewable ? "primary" : "pill"}
+      />
+      {/* A real link, so the row stays keyboard-reachable and middle-click /
+          open-in-new-tab keep working. */}
+      <Link
+        href={href}
+        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-lg px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:ring-offset-2 focus-visible:outline-none",
+          renewable
+            ? "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            : "bg-slate-900 text-white hover:bg-slate-800"
+        )}
+      >
+        {renewable ? "View" : "Review"}
+        <ChevronRight className="size-3.5" aria-hidden />
+      </Link>
+    </>
+  );
 }
 
 // ── Public component ──────────────────────────────────────────────────────────
@@ -111,8 +171,16 @@ function SubmittedLabel({ item }: { item: ContractListItemDto }) {
  * that the grid can stay mounted across a page click, filter switch or
  * debounced search instead of being swapped for a skeleton.
  */
-export function HrDataTable({ items }: { items: ContractListItemDto[] }) {
+export function HrDataTable({
+  items,
+  status,
+}: {
+  items: ContractListItemDto[];
+  /** The active queue filter — decides what the date column means. */
+  status: StatusFilter;
+}) {
   const router = useRouter();
+  const columns = COLUMNS(dateColumnLabel(status));
 
   return (
     <>
@@ -147,20 +215,14 @@ export function HrDataTable({ items }: { items: ContractListItemDto[] }) {
               <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
                 <FaydaCell submitted={!!item.submittedAt} />
                 <span className="text-[11px] text-slate-400">
-                  <SubmittedLabel item={item} />
+                  <DateCell item={item} status={status} />
                 </span>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <RemindButton contract={item} surface="reviewer" />
-                {/* ml-auto keeps Review right-aligned when there is no reminder. */}
-                <Link
-                  href={href}
-                  className="ml-auto inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-medium whitespace-nowrap text-white transition-colors hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:ring-offset-2 focus-visible:outline-none"
-                >
-                  Review
-                  <ChevronRight className="size-3.5" aria-hidden />
-                </Link>
+              {/* justify-end keeps the trailing link right-aligned whatever mix
+                  of actions precedes it. */}
+              <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                <RowActions item={item} href={href} />
               </div>
             </li>
           );
@@ -172,13 +234,19 @@ export function HrDataTable({ items }: { items: ContractListItemDto[] }) {
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="h-10 border-b border-slate-200 bg-slate-50/60 text-[11px] tracking-wider text-slate-500 uppercase">
-              {COLUMNS.map((column, i) => (
+              {columns.map((column, i) => (
                 <th
                   key={column || `actions-${i}`}
                   scope="col"
-                  className={cn(HEAD_CELL, !column && "sr-only")}
+                  // The actions heading is hidden on the span, not the cell.
+                  // `sr-only` sets position:absolute, which pulled the <th>
+                  // itself out of the table and left the header row one cell
+                  // short of the body — so the auto layout had no width to
+                  // reserve for the widest, least compressible column and the
+                  // trailing link was clipped by the card edge.
+                  className={cn(HEAD_CELL, !column && "w-64")}
                 >
-                  {column || "Actions"}
+                  {column || <span className="sr-only">Actions</span>}
                 </th>
               ))}
             </tr>
@@ -208,21 +276,11 @@ export function HrDataTable({ items }: { items: ContractListItemDto[] }) {
                     <StatusDotLabel status={item.status} />
                   </td>
                   <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500">
-                    <SubmittedLabel item={item} />
+                    <DateCell item={item} status={status} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <RemindButton contract={item} surface="reviewer" />
-                      {/* A real link, so the row stays keyboard-reachable and
-                          middle-click/open-in-new-tab keep working. */}
-                      <Link
-                        href={href}
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-medium whitespace-nowrap text-white transition-colors hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:ring-offset-2 focus-visible:outline-none"
-                      >
-                        Review
-                        <span aria-hidden>→</span>
-                      </Link>
+                      <RowActions item={item} href={href} />
                     </div>
                   </td>
                 </tr>
