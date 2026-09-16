@@ -3,7 +3,15 @@
 import { useCallback, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { reviewerApi, type ReviewerContractsParams } from "@/lib/api/reviewer.api";
-import type { ContractStatus, RejectPayload } from "@/types/backend";
+import type {
+  ContractDossierDto,
+  ContractListItemDto,
+  ContractStatus,
+  FinanceContractListItemDto,
+  Paginated,
+  RejectPayload,
+  RenewContractResponse,
+} from "@/types/backend";
 
 function invalidateReviewerMutations(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -102,16 +110,24 @@ export function useReviewerKpis(token: string) {
     enabled: !!token,
   });
 
+  const expiredQuery = useQuery({
+    queryKey: ["reviewer-kpis", "expired", token],
+    queryFn: () => reviewerApi.getContracts(token, { status: "EXPIRED", page: 1, limit: 1 }),
+    enabled: !!token,
+  });
+
   return {
     pendingReview: pendingReviewQuery.data?.total ?? 0,
     resubmissionRequired: resubmissionQuery.data?.total ?? 0,
     totalVerified: signedQuery.data?.total ?? 0,
     totalRejected: rejectedQuery.data?.total ?? 0,
+    expired: expiredQuery.data?.total ?? 0,
     isLoading:
       pendingReviewQuery.isLoading ||
       resubmissionQuery.isLoading ||
       signedQuery.isLoading ||
-      rejectedQuery.isLoading,
+      rejectedQuery.isLoading ||
+      expiredQuery.isLoading,
   };
 }
 
@@ -178,5 +194,79 @@ export function useRetrySealing(token: string, id: string) {
   return useMutation({
     mutationFn: () => reviewerApi.retrySealing(token, id),
     onSuccess: () => invalidateReviewerMutations(queryClient, id),
+  });
+}
+
+/** The fields a renewal moves, common to all three contract DTOs. */
+type RenewableRow = {
+  contractId: string;
+  status: ContractStatus;
+  expiresAt?: string;
+  reminderCount?: number;
+  lastReminderSentAt?: string;
+  nextReminderAt?: string;
+};
+
+function patchRenewedRow<T extends RenewableRow>(
+  row: T,
+  contractId: string,
+  data: RenewContractResponse
+): T {
+  if (row.contractId !== contractId) return row;
+  return {
+    ...row,
+    status: data.status,
+    expiresAt: data.expiresAt,
+    reminderCount: data.reminderCount,
+    nextReminderAt: data.nextReminderAt,
+    // Cleared, not carried: the counter is back to 0/3, so keeping the old send
+    // timestamp would render "0 of 3 · Last sent <date>".
+    lastReminderSentAt: undefined,
+  };
+}
+
+/**
+ * Re-issues a lapsed signing link. Unlike `useRemindContract` this owns no
+ * toasts — the copy names the candidate, which only the call site knows.
+ *
+ * The cache is patched from the response *before* invalidating, for the reason
+ * spelled out in use-reminders.ts: both lists run `placeholderData:
+ * keepPreviousData`, so a bare invalidation would leave the stale EXPIRED row
+ * on screen for the whole refetch — a window in which a second click sends a
+ * second SMS. Status is part of the patch here, so the row visibly moves to
+ * Invited the moment the request lands.
+ */
+export function useRenewContract(token: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (contractId: string) => reviewerApi.renewContract(token, contractId),
+
+    onSuccess: (data, contractId) => {
+      queryClient.setQueriesData<Paginated<ContractListItemDto>>(
+        { queryKey: ["reviewer-contracts"] },
+        (prev) =>
+          prev && {
+            ...prev,
+            items: prev.items.map((row) => patchRenewedRow(row, contractId, data)),
+          }
+      );
+      queryClient.setQueriesData<Paginated<FinanceContractListItemDto>>(
+        { queryKey: ["finance-contracts"] },
+        (prev) =>
+          prev && {
+            ...prev,
+            items: prev.items.map((row) => patchRenewedRow(row, contractId, data)),
+          }
+      );
+      queryClient.setQueryData<ContractDossierDto>(
+        ["reviewer-contract", contractId],
+        (prev) => prev && patchRenewedRow(prev, contractId, data)
+      );
+
+      // A renewal changes status, so unlike a reminder this MUST move the KPI
+      // keys too or the Expired badge drifts from the rows it counts.
+      invalidateReviewerMutations(queryClient, contractId);
+    },
   });
 }

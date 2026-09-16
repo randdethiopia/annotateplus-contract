@@ -25,6 +25,8 @@ import { CopyValueButton } from "@/components/contracts/copy-value-button";
 import { DossierSkeleton } from "@/components/contracts/dossier-skeleton";
 import { IdCardLightbox } from "@/components/contracts/id-card-lightbox";
 import { RejectContractDialog } from "@/components/contracts/reject-contract-dialog";
+import { ExpiredLinkBanner } from "@/components/contracts/expired-link-banner";
+import { PreSubmissionDossier } from "@/components/contracts/pre-submission-dossier";
 import { RemindButton } from "@/components/contracts/remind-button";
 import { SignedBanner } from "@/components/contracts/signed-banner";
 import { Button } from "@/components/ui/button";
@@ -39,6 +41,7 @@ import {
   useRetrySealing,
 } from "@/lib/hooks/use-reviewer";
 import { isRemindable, MAX_REMINDERS } from "@/lib/reminder-utils";
+import { isRenewable } from "@/lib/renew-utils";
 import { canApprove, canRetrySealing } from "@/lib/status-actions";
 import { formatSignedDateTime } from "@/lib/format-date";
 import { normalizePhoneToLocal } from "@/lib/phone";
@@ -236,6 +239,15 @@ export default function HrDossierPage() {
 
       {effectiveStatus === "SIGNED" && <SignedBanner documentHash={actionResult?.documentHash} />}
 
+      {/* The lead element when the window has closed: it states the condition
+          and carries the one action that resolves it. */}
+      {isRenewable(dossier) && (
+        <ExpiredLinkBanner
+          dossier={dossier}
+          candidateName={dossier.candidateName ?? latestAttempt?.submittedData.fullNameEnglish}
+        />
+      )}
+
       {/* At these statuses there is no attempt yet, so the panel below renders
           nothing and this is the whole page — the nudge belongs up front. */}
       {isRemindable(dossier.status) && (
@@ -266,6 +278,11 @@ export default function HrDossierPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Everything below is keyed off the latest attempt, and an unsubmitted
+          contract has none — without this the page would render as an empty
+          void for every INVITED, VIEWED and EXPIRED dossier. */}
+      {!latestAttempt && <PreSubmissionDossier dossier={dossier} />}
 
       {latestAttempt && (
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">

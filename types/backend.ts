@@ -175,6 +175,12 @@ export interface ContractListItemDto {
   reminderCount?: number;
   lastReminderSentAt?: string;
   nextReminderAt?: string;
+  /**
+   * Signing-link expiry. Same graceful absence as the reminder fields — read
+   * through `isRenewable`, which treats absence as "not expired" so a missing
+   * timestamp can never offer a live-SMS action it cannot justify.
+   */
+  expiresAt?: string;
 }
 
 export interface AttemptSummaryDto {
@@ -232,10 +238,25 @@ export interface ContractDossierDto {
   bankAccountNumber?: string;
   approvedBy?: string;
   approvedAt?: string;
+  /**
+   * Identity as captured at invitation, before any submission exists.
+   *
+   * The list endpoint already returns the first two on ContractListItemDto; the
+   * dossier endpoint does not yet send any of them, which is why an unsubmitted
+   * dossier can only identify a candidate by phone number. Optional so the
+   * pre-submission cards render the rows they have and grow the rest the moment
+   * the backend catches up — the same contract as `expiresAt`.
+   */
+  candidateName?: string;
+  candidateNameAmharic?: string;
+  residence?: string;
+  /** Agreement template revision, e.g. "RD_EOC_HR_007_REV1". */
+  templateId?: string;
   /** See the note on ContractListItemDto — same fields, same graceful absence. */
   reminderCount?: number;
   lastReminderSentAt?: string;
   nextReminderAt?: string;
+  expiresAt?: string;
 }
 
 export interface ApproveResponseData {
@@ -320,6 +341,7 @@ export interface FinanceContractListItemDto {
   reminderCount?: number;
   lastReminderSentAt?: string;
   nextReminderAt?: string;
+  expiresAt?: string;
 }
 
 /**
@@ -333,5 +355,25 @@ export interface RemindContractResponse {
   lastReminderSentAt: string;
   nextReminderAt: string;
   /** Absent on backends that dispatch out of band, like CreateContractResponseData. */
+  smsStatus?: SmsDispatchStatus;
+}
+
+/**
+ * Outcome of re-issuing a lapsed signing link. The endpoint grants a fresh
+ * 30-day token, moves EXPIRED back to INVITED (or leaves an in-progress status
+ * alone), resets the reminder counter, and dispatches one SMS.
+ *
+ * `success` from the task spec is deliberately absent: `api<T>()` returns
+ * `response.data.data`, so the envelope's flag never reaches a call site.
+ */
+export interface RenewContractResponse {
+  contractId: string;
+  /** The status held before renewal — usually EXPIRED. */
+  previousStatus: ContractStatus;
+  status: ContractStatus;
+  expiresAt: string;
+  reminderCount: number;
+  nextReminderAt: string;
+  /** Absent on backends that dispatch out of band, like RemindContractResponse. */
   smsStatus?: SmsDispatchStatus;
 }
