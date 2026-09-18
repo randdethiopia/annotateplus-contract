@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Download, Loader2 } from "lucide-react";
+import { AlertTriangle, Download, Flame, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { CommandBar, statusFilterLabel, type QueueTab } from "@/components/system/command-bar";
 import { MetricsStrip } from "@/components/system/metrics-strip";
@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/system/empty-state";
 import { QueueShell } from "@/components/system/queue-shell";
 import { RESULTS_REGION_ID } from "@/components/system/workstation";
 import { FinanceTable, FinanceTableSkeleton } from "@/components/finance/finance-table";
+import { BulkRemindBar } from "@/components/finance/bulk-remind-bar";
 import { CreateContractDialog } from "@/components/finance/create-contract-dialog";
 import { FinanceDetailSheet } from "@/components/contracts/finance-detail-sheet";
 import { PaginationBar } from "@/components/contracts/pagination-bar";
@@ -19,6 +20,7 @@ import {
   useExportPayrollCsv,
   useFinanceContracts,
   useFinanceKpis,
+  useFinanceSummary,
 } from "@/lib/hooks/use-finance";
 import { useWorkstationParams } from "@/lib/hooks/use-workstation-params";
 import { useClampPage } from "@/lib/hooks/use-clamp-page";
@@ -30,15 +32,28 @@ export default function FinancePage() {
   const { token } = useAuth();
   // The URL is the only store for queue state. `selected` stays local — it
   // drives the detail sheet, not the list.
-  const { status, search, page, limit, setStatus, setSearch, setPage, setLimit, clearSearch } =
-    useWorkstationParams({ defaultStatus: "SIGNED" });
+  const {
+    status,
+    search,
+    reminderEligible,
+    page,
+    limit,
+    setStatus,
+    setFilters,
+    setSearch,
+    setPage,
+    setLimit,
+    clearSearch,
+  } = useWorkstationParams({ defaultStatus: "SIGNED" });
   const [selected, setSelected] = useState<FinanceContractListItemDto | null>(null);
 
   const kpis = useFinanceKpis(token ?? "");
+  const { data: summary } = useFinanceSummary(token ?? "");
   const { data, isPending, isFetching, isPlaceholderData, isError, error, refetch } =
     useFinanceContracts(token ?? "", {
       status,
       search: search || undefined,
+      reminderEligible,
       page,
       limit,
     });
@@ -50,7 +65,7 @@ export default function FinancePage() {
   } = useDownloadFinanceDocument(token ?? "");
 
   const items = data?.items ?? [];
-  const hasFilters = !!search || status !== "ALL";
+  const hasFilters = !!search || status !== "ALL" || reminderEligible;
 
   // `selected` is a snapshot taken at click time, so cache patches — a sent
   // reminder, for instance — would never reach the open sheet. Re-read it from
@@ -68,10 +83,18 @@ export default function FinancePage() {
   });
 
   const tabs: QueueTab[] = [
+    {
+      value: "INVITED",
+      label: "Needs Reminder",
+      icon: Flame,
+      count: summary?.reminderEligible,
+      active: reminderEligible,
+      onSelect: () => setFilters({ status: "INVITED", reminderEligible: true }),
+    },
     { value: "ALL", label: "All" },
     { value: "SIGNED", label: "Signed" },
     { value: "PENDING_REVIEW", label: "Pending Review", count: kpis.pendingReview },
-    { value: "INVITED", label: "Invited" },
+    { value: "INVITED", label: "Invited", active: !reminderEligible && status === "INVITED" },
     { value: "RESUBMISSION_REQUIRED", label: "Resubmissions" },
     // Visibility only — renewal runs through the reviewer endpoint, so the
     // action lives on /hr. No count: an extra limit:1 fan-out isn't earned on a
@@ -163,6 +186,13 @@ export default function FinancePage() {
           searchPlaceholder="Search worker name, phone, or contract number…"
           searchLabel="Search contracts and payroll"
         />
+
+        {reminderEligible && (
+          <BulkRemindBar
+            token={token ?? ""}
+            eligibleCount={summary?.reminderEligible ?? 0}
+          />
+        )}
 
         <QueueShell
           id={RESULTS_REGION_ID}

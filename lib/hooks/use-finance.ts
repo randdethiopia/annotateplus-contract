@@ -3,11 +3,13 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { financeApi, type FinanceContractsParams } from "@/lib/api/finance.api";
 import type { CreateContractInput } from "@/lib/validations/contract.schema";
+import type { BulkRemindParams } from "@/types/backend";
 
 export function useFinanceContracts(token: string, params: FinanceContractsParams) {
   const filters = {
     status: params.status,
     search: params.search?.trim() || undefined,
+    reminderEligible: params.reminderEligible || undefined,
     page: params.page,
     limit: params.limit,
   };
@@ -21,6 +23,30 @@ export function useFinanceContracts(token: string, params: FinanceContractsParam
     placeholderData: keepPreviousData,
     staleTime: 15_000,
     refetchOnWindowFocus: false,
+  });
+}
+
+export function useFinanceSummary(token: string) {
+  return useQuery({
+    queryKey: ["finance-summary", token],
+    queryFn: () => financeApi.getSummary(token),
+    enabled: !!token,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useBulkRemind(token: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: BulkRemindParams) => financeApi.bulkRemind(token, params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["reviewer-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["reviewer-kpis"] });
+    },
   });
 }
 

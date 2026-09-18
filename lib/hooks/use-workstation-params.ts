@@ -47,9 +47,14 @@ interface Defaults {
 export interface WorkstationParamValues {
   status: StatusFilter;
   search: string;
+  reminderEligible: boolean;
   page: number;
   limit: PageLimit;
 }
+
+export type WorkstationFilterPatch = Partial<
+  Pick<WorkstationParamValues, "status" | "reminderEligible">
+>;
 
 function coerceSearch(raw: string | null): string {
   // Trimmed so `?search=%20%20` is the default state rather than a filter that
@@ -77,6 +82,7 @@ function parseParams(sp: URLSearchParams, defaults: Defaults): WorkstationParamV
     status:
       status !== null && STATUS_LOOKUP.has(status) ? (status as StatusFilter) : defaults.status,
     search: coerceSearch(sp.get("search")),
+    reminderEligible: sp.get("reminderEligible") === "true",
     page: coercePage(sp.get("page")),
     limit: coerceLimit(sp.get("limit"), defaults.limit),
   };
@@ -92,6 +98,7 @@ function buildQuery(state: WorkstationParamValues, defaults: Defaults): string {
   // than `/hr?status=PENDING_REVIEW&search=&page=1&limit=20`.
   if (state.status !== defaults.status) query.set("status", state.status);
   if (state.search !== "") query.set("search", state.search);
+  if (state.reminderEligible) query.set("reminderEligible", "true");
   if (state.page !== DEFAULT_PAGE) query.set("page", String(state.page));
   if (state.limit !== defaults.limit) query.set("limit", String(state.limit));
   return query.toString();
@@ -107,6 +114,7 @@ export interface UseWorkstationParamsOptions {
 
 export interface WorkstationParams extends WorkstationParamValues {
   setStatus: (next: StatusFilter) => void;
+  setFilters: (patch: WorkstationFilterPatch) => void;
   setSearch: (next: string) => void;
   setPage: (next: number) => void;
   setLimit: (next: PageLimit) => void;
@@ -131,7 +139,7 @@ export function useWorkstationParams({
 
   // Four Set/regex probes — cheaper than the `useMemo` that would guard them.
   // The memo that matters is the one on the returned object.
-  const { status, search, page, limit } = parseParams(
+  const { status, search, reminderEligible, page, limit } = parseParams(
     // `useSearchParams` hands back a ReadonlyURLSearchParams, which reads the
     // same but is not assignable to URLSearchParams.
     new URLSearchParams(searchParams.toString()),
@@ -155,6 +163,8 @@ export function useWorkstationParams({
       const crossesBoundary =
         (patch.status !== undefined && patch.status !== current.status) ||
         (patch.search !== undefined && patch.search !== current.search) ||
+        (patch.reminderEligible !== undefined &&
+          patch.reminderEligible !== current.reminderEligible) ||
         (patch.limit !== undefined && patch.limit !== current.limit);
 
       const next: WorkstationParamValues = {
@@ -189,7 +199,11 @@ export function useWorkstationParams({
 
   // A status switch is a deliberate destination → push.
   const setStatus = useCallback(
-    (next: StatusFilter) => commit({ status: next }, "push"),
+    (next: StatusFilter) => commit({ status: next, reminderEligible: false }, "push"),
+    [commit]
+  );
+  const setFilters = useCallback(
+    (patch: WorkstationFilterPatch) => commit(patch, "push"),
     [commit]
   );
   // Typing, paging and page size are refinements of one view → replace, so a
@@ -213,7 +227,31 @@ export function useWorkstationParams({
   // object's identity changes only when a value actually changes — safe to drop
   // whole into a dependency array.
   return useMemo(
-    () => ({ status, search, page, limit, setStatus, setSearch, setPage, setLimit, clearSearch }),
-    [status, search, page, limit, setStatus, setSearch, setPage, setLimit, clearSearch]
+    () => ({
+      status,
+      search,
+      reminderEligible,
+      page,
+      limit,
+      setStatus,
+      setFilters,
+      setSearch,
+      setPage,
+      setLimit,
+      clearSearch,
+    }),
+    [
+      status,
+      search,
+      reminderEligible,
+      page,
+      limit,
+      setStatus,
+      setFilters,
+      setSearch,
+      setPage,
+      setLimit,
+      clearSearch,
+    ]
   );
 }
