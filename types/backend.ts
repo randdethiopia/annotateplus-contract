@@ -344,6 +344,23 @@ export interface FinanceContractListItemDto {
   expiresAt?: string;
 }
 
+export interface FinanceSummary {
+  reminderEligible: number;
+}
+
+export interface BulkRemindParams {
+  contractIds?: string[];
+  allEligible?: boolean;
+  limit?: number;
+}
+
+export interface BulkRemindResult {
+  totalTargeted: number;
+  processedCount: number;
+  skippedCount: number;
+  failures: number;
+}
+
 /**
  * Outcome of an SMS nudge to a candidate who was invited but has not submitted.
  * Shared by the reviewer and finance remind endpoints — the cooldown in

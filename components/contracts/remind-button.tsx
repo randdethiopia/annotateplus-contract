@@ -1,7 +1,7 @@
 "use client";
 
 import type { MouseEvent } from "react";
-import { Bell, Clock, Loader2 } from "lucide-react";
+import { Ban, Bell, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -9,6 +9,7 @@ import { formatSignedDateTime } from "@/lib/format-date";
 import { useReminderTick } from "@/lib/hooks/use-reminder-tick";
 import { useRemindContract, type ReminderSurface } from "@/lib/hooks/use-reminders";
 import { getReminderState, MAX_REMINDERS, type RemindableContract } from "@/lib/reminder-utils";
+import { isRenewable, type RenewableContract } from "@/lib/renew-utils";
 import { cn } from "@/lib/utils";
 
 /** Matches the neutral Copy Link pill in the finance grid — a nudge is not a completed action. */
@@ -39,7 +40,8 @@ export function RemindButton({
   className,
 }: {
   /** Any of the three contract DTOs satisfies this structurally. */
-  contract: RemindableContract & { contractId: string; contractNumber: string };
+  contract: RemindableContract &
+    RenewableContract & { contractId: string; contractNumber: string };
   surface: ReminderSurface;
   /** "pill" sits beside the other row actions; "button" suits the sheet and dossier. */
   appearance?: "pill" | "button";
@@ -54,6 +56,8 @@ export function RemindButton({
   const state = getReminderState(contract);
   const isPill = appearance === "pill";
 
+  if (isRenewable(contract)) return null;
+
   if (!state.canRemind && !state.isCooldownActive && !state.isMaxReached) return null;
 
   // A span rather than a disabled button: there is no action to take, and
@@ -61,6 +65,7 @@ export function RemindButton({
   // opening on hover. Nothing here is disabled, so hover and focus both work.
   if (state.isCooldownActive || state.isMaxReached) {
     const hours = state.cooldownHoursRemaining;
+    const LockIcon = state.isMaxReached ? Ban : Clock;
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -68,7 +73,7 @@ export function RemindButton({
             tabIndex={0}
             className={cn(isPill ? PILL_PASSIVE : PANEL_PASSIVE, className)}
           >
-            <Clock className={isPill ? "size-3 shrink-0" : "size-4 shrink-0"} aria-hidden />
+            <LockIcon className={isPill ? "size-3 shrink-0" : "size-4 shrink-0"} aria-hidden />
             {state.displayText}
             {/* The visible label is terse, so this carries the full accessible
                 name and screen reader users never have to reach the tooltip. */}
@@ -81,7 +86,7 @@ export function RemindButton({
         </TooltipTrigger>
         <TooltipContent>
           {state.isMaxReached
-            ? "Maximum automated reminder cap reached"
+            ? `Candidate reached maximum reminders (${contract.reminderCount ?? MAX_REMINDERS}/${MAX_REMINDERS})`
             : contract.nextReminderAt
               ? `Reminder sent. Available again ${formatSignedDateTime(contract.nextReminderAt)}`
               : `Reminder sent. Available again in ${hours}h`}

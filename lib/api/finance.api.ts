@@ -3,8 +3,11 @@ import { DEFAULT_TEMPLATE_ID } from "@/lib/contract-templates";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import { saveBlob } from "@/lib/save-blob";
 import type {
+  BulkRemindParams,
+  BulkRemindResult,
   ContractStatus,
   CreateContractRequestBody,
+  FinanceSummary,
   CreateContractResponseData,
   FinanceContractListItemDto,
   Paginated,
@@ -15,6 +18,7 @@ import type { CreateContractInput } from "@/lib/validations/contract.schema";
 export interface FinanceContractsParams {
   status?: ContractStatus | "ALL";
   search?: string;
+  reminderEligible?: boolean;
   page: number;
   limit: number;
 }
@@ -26,6 +30,9 @@ function buildContractsQuery(params: FinanceContractsParams): string {
   }
   if (params.search?.trim()) {
     query.set("search", params.search.trim());
+  }
+  if (params.reminderEligible) {
+    query.set("reminderEligible", "true");
   }
   query.set("page", String(params.page));
   query.set("limit", String(params.limit));
@@ -60,6 +67,18 @@ export const financeApi = {
     return api<RemindContractResponse>(`/finance/contracts/${contractId}/remind`, {
       method: "POST",
       token,
+    });
+  },
+
+  getSummary(token: string): Promise<FinanceSummary> {
+    return api<FinanceSummary>("/finance/contracts/summary", { token });
+  },
+
+  bulkRemind(token: string, params: BulkRemindParams): Promise<BulkRemindResult> {
+    return api<BulkRemindResult>("/finance/contracts/bulk-remind", {
+      method: "POST",
+      token,
+      body: params,
     });
   },
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, type LucideIcon } from "lucide-react";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { STATUS_STYLE } from "@/components/system/status-badge";
 import { RESULTS_REGION_ID, SEARCH_DEBOUNCE_MS } from "@/components/system/workstation";
@@ -15,6 +15,9 @@ export interface QueueTab {
   label: string;
   /** Rendered beside the label whenever defined — including a genuine 0. */
   count?: number;
+  icon?: LucideIcon;
+  active?: boolean;
+  onSelect?: () => void;
 }
 
 /**
@@ -213,26 +216,28 @@ export function CommandBar({
       className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200/60 bg-slate-100/80 p-1"
     >
       {tabs.map((tab) => {
-        const isActive = status === tab.value;
+        const isActive = tab.active ?? status === tab.value;
+        const Icon = tab.icon;
         return (
           <button
-            key={tab.value}
+            key={tab.label}
             type="button"
             aria-pressed={isActive}
             aria-controls={resultsRegionId}
-            onClick={() => onStatusChange(tab.value)}
+            onClick={() => (tab.onSelect ? tab.onSelect() : onStatusChange(tab.value))}
             className={cn(
-              "rounded-md px-3 py-1.5 text-xs whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-slate-900/10 focus-visible:outline-none",
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-slate-900/10 focus-visible:outline-none",
               isActive
                 ? "bg-white font-semibold text-slate-900 shadow-xs"
                 : "font-medium text-slate-600 hover:text-slate-900"
             )}
           >
+            {Icon && <Icon className="size-3.5 shrink-0" aria-hidden />}
             {tab.label}
             {tab.count !== undefined && (
               // min-w reserves the digit slot, so a count arriving after the
               // first paint does not reflow the whole group.
-              <span className="ml-1.5 inline-block min-w-[1ch] text-slate-400 tabular">
+              <span className="inline-block min-w-[1ch] text-slate-400 tabular">
                 {tab.count}
               </span>
             )}

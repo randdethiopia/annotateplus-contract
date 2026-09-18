@@ -3,6 +3,8 @@ import type { ContractStatus } from "@/types/backend";
 /** Backend-enforced cap. Mirrored here only so the UI can label the state. */
 export const MAX_REMINDERS = 3;
 
+export const BULK_REMIND_LIMIT = 100;
+
 /**
  * The one gate both queues read, so HR and finance can never drift apart.
  *
@@ -58,7 +60,7 @@ export function getReminderState(contract: RemindableContract): ReminderState {
   const count = contract.reminderCount ?? 0;
 
   if (count >= MAX_REMINDERS) {
-    return { ...idle, isMaxReached: true, displayText: `Max (${count}/${MAX_REMINDERS})` };
+    return { ...idle, isMaxReached: true, displayText: `Max sent (${count}/${MAX_REMINDERS})` };
   }
 
   const nextAt = contract.nextReminderAt ? Date.parse(contract.nextReminderAt) : NaN;
@@ -72,14 +74,13 @@ export function getReminderState(contract: RemindableContract): ReminderState {
       ...idle,
       isCooldownActive: true,
       cooldownHoursRemaining: hoursLeft,
-      displayText:
-        count === 0 ? `Wait ${hoursLeft}h` : `Sent (${count}/${MAX_REMINDERS}) · ${hoursLeft}h`,
+      displayText: `Wait ${hoursLeft}h (${count}/${MAX_REMINDERS})`,
     };
   }
 
   return {
     ...idle,
     canRemind: true,
-    displayText: count === 0 ? "Send Reminder" : `Remind (${count}/${MAX_REMINDERS})`,
+    displayText: `Send reminder (${count}/${MAX_REMINDERS})`,
   };
 }
