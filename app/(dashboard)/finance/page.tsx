@@ -19,6 +19,7 @@ import {
   useDownloadFinanceDocument,
   useExportPayrollCsv,
   useFinanceContracts,
+  useExportPipelineCsv,
   useFinanceKpis,
   useFinanceSummary,
 } from "@/lib/hooks/use-finance";
@@ -57,7 +58,12 @@ export default function FinancePage() {
       page,
       limit,
     });
-  const { mutate: exportPayroll, isPending: isExporting } = useExportPayrollCsv(token ?? "");
+  const { mutate: exportPayroll, isPending: isExportingPayroll } = useExportPayrollCsv(
+    token ?? ""
+  );
+  const { mutate: exportPipeline, isPending: isExportingPipeline } = useExportPipelineCsv(
+    token ?? ""
+  );
   const {
     mutate: downloadDocument,
     isPending: isDownloading,
@@ -66,6 +72,8 @@ export default function FinancePage() {
 
   const items = data?.items ?? [];
   const hasFilters = !!search || status !== "ALL" || reminderEligible;
+  const isPipelineContext =
+    status === "INVITED" || status === "EXPIRED" || Boolean(reminderEligible);
 
   // `selected` is a snapshot taken at click time, so cache patches — a sent
   // reminder, for instance — would never reach the open sheet. Re-read it from
@@ -102,7 +110,7 @@ export default function FinancePage() {
     { value: "EXPIRED", label: statusFilterLabel("EXPIRED") },
   ];
 
-  function handleExport() {
+  function handleExportPayroll() {
     exportPayroll(undefined, {
       onSuccess: () => toast.success("Payroll export downloaded"),
       onError: (err) => {
@@ -110,6 +118,19 @@ export default function FinancePage() {
         toast.error(describeError(err, "Export failed"));
       },
     });
+  }
+
+  function handleExportPipeline() {
+    exportPipeline(
+      { status, reminderEligible, search: search || undefined },
+      {
+        onSuccess: () => toast.success("Pipeline CSV downloaded successfully."),
+        onError: (err) => {
+          console.error("Pipeline export failed", err);
+          toast.error(describeError(err, "Export failed"));
+        },
+      }
+    );
   }
 
   function handleDownload(item: FinanceContractListItemDto) {
@@ -133,20 +154,37 @@ export default function FinancePage() {
         {/* On a phone the two actions split one row evenly instead of wrapping
             into a ragged stack. */}
         <div className="flex w-full items-center gap-2 sm:w-auto">
-          <Button
-            type="button"
-            variant="outline"
-            className="flex-1 sm:flex-none"
-            onClick={handleExport}
-            disabled={isExporting}
-          >
-            {isExporting ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Download className="size-4" />
-            )}
-            Export Payroll CSV
-          </Button>
+          {isPipelineContext ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              onClick={handleExportPipeline}
+              disabled={isExportingPipeline}
+            >
+              {isExportingPipeline ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Download className="size-4" />
+              )}
+              Export Pipeline CSV
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              onClick={handleExportPayroll}
+              disabled={isExportingPayroll}
+            >
+              {isExportingPayroll ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Download className="size-4" />
+              )}
+              Export Payroll CSV
+            </Button>
+          )}
           <CreateContractDialog />
         </div>
       </div>
