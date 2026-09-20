@@ -23,6 +23,12 @@ export interface FinanceContractsParams {
   limit: number;
 }
 
+export interface ExportPipelineParams {
+  status?: ContractStatus | "ALL";
+  reminderEligible?: boolean;
+  search?: string;
+}
+
 function buildContractsQuery(params: FinanceContractsParams): string {
   const query = new URLSearchParams();
   if (params.status && params.status !== "ALL") {
@@ -95,5 +101,26 @@ export const financeApi = {
     const blob = await apiBlob("/finance/contracts/export-payroll", token);
     const today = new Date().toISOString().slice(0, 10);
     saveBlob(blob, `payroll_export_${today}.csv`);
+  },
+
+  async exportPipelineCsv(token: string, params: ExportPipelineParams = {}): Promise<void> {
+    const query = new URLSearchParams();
+    if (params.status && params.status !== "ALL") {
+      query.set("status", params.status);
+    }
+    if (params.reminderEligible) {
+      query.set("reminderEligible", "true");
+    }
+    if (params.search?.trim()) {
+      query.set("search", params.search.trim());
+    }
+
+    const queryString = query.toString();
+    const blob = await apiBlob(
+      `/finance/contracts/export-pipeline${queryString ? `?${queryString}` : ""}`,
+      token
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    saveBlob(blob, `contracts_pipeline_${today}.csv`);
   },
 };

@@ -1,7 +1,11 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { financeApi, type FinanceContractsParams } from "@/lib/api/finance.api";
+import {
+  financeApi,
+  type ExportPipelineParams,
+  type FinanceContractsParams,
+} from "@/lib/api/finance.api";
 import type { CreateContractInput } from "@/lib/validations/contract.schema";
 import type { BulkRemindParams } from "@/types/backend";
 
@@ -101,5 +105,11 @@ export function useDownloadFinanceDocument(token: string) {
 export function useExportPayrollCsv(token: string) {
   return useMutation({
     mutationFn: () => financeApi.exportPayrollCsv(token),
+  });
+}
+
+export function useExportPipelineCsv(token: string) {
+  return useMutation({
+    mutationFn: (params: ExportPipelineParams) => financeApi.exportPipelineCsv(token, params),
   });
 }
