@@ -13,6 +13,7 @@ import {
 import { StatusBadge } from "@/components/system/status-badge";
 import { SignedBanner } from "@/components/contracts/signed-banner";
 import { ContractDocument } from "@/components/contracts/contract-document";
+import { SealedPdfPreview } from "@/components/contracts/sealed-pdf-preview";
 import { CopyValueButton } from "@/components/contracts/copy-value-button";
 import { RemindButton } from "@/components/contracts/remind-button";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -63,6 +64,9 @@ export function FinanceDetailSheet({
 }) {
   const { token } = useAuth();
   const { mutate: download, isPending } = useDownloadFinanceDocument(token ?? "");
+
+  const showSealedPdf =
+    !!contract && canFinanceDownload(contract.status) && contract.hasSealedDocument;
 
   function handleDownload() {
     if (!contract) return;
@@ -148,7 +152,7 @@ export function FinanceDetailSheet({
                 </div>
               )}
 
-              {canFinanceDownload(contract.status) && contract.hasSealedDocument && (
+              {showSealedPdf && (
                 <Button
                   type="button"
                   onClick={handleDownload}
@@ -166,15 +170,23 @@ export function FinanceDetailSheet({
 
               <div>
                 <h3 className="text-foreground mb-3 text-sm font-semibold tracking-tight">
-                  Full agreement
+                  {showSealedPdf ? "Official sealed agreement" : "Full agreement"}
                 </h3>
-                <ContractDocument
-                  contractNumber={contract.contractNumber}
-                  workerName={contract.workerName ?? "________________________"}
-                  signed={contract.status === "SIGNED"}
-                  agreementDate={contract.agreementDate}
-                  signedDate={contract.signedAt}
-                />
+                {showSealedPdf ? (
+                  <SealedPdfPreview
+                    contractId={contract.contractId}
+                    token={token ?? ""}
+                    contractNumber={contract.contractNumber}
+                  />
+                ) : (
+                  <ContractDocument
+                    contractNumber={contract.contractNumber}
+                    workerName={contract.workerName ?? "________________________"}
+                    signed={contract.status === "SIGNED"}
+                    agreementDate={contract.agreementDate}
+                    signedDate={contract.signedAt}
+                  />
+                )}
               </div>
             </div>
           </>

@@ -16,7 +16,7 @@ export const COMPANY_NAME = "R & D Entrepreneurship and Outsourcing Center PLC";
 export const COMPANY_SHORT = "R&D Group";
 export const COMPANY_ADDRESS = "Addis Ababa, Lideta";
 export const COMPANY_SIGNATORY_NAME = "Brook Debela";
-export const COMPANY_SIGNATORY_TITLE = "Innovation Team Manager";
+export const COMPANY_SIGNATORY_TITLE = "Placement and Partnership Lead";
 
 export type Bullet = string | { text: string; subBullets: string[] };
 
