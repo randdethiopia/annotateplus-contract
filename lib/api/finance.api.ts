@@ -88,12 +88,16 @@ export const financeApi = {
     });
   },
 
+  getSealedDocumentPath(contractId: string): string {
+    return `/finance/contracts/${contractId}/document`;
+  },
+
   async downloadSealedDocument(
     token: string,
     contractId: string,
     contractNumber: string
   ): Promise<void> {
-    const blob = await apiBlob(`/finance/contracts/${contractId}/document`, token);
+    const blob = await apiBlob(financeApi.getSealedDocumentPath(contractId), token);
     saveBlob(blob, `${contractNumber.replace(/[^\w]+/g, "_")}.pdf`);
   },
 
