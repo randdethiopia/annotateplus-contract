@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { AlertTriangle, Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { financeApi } from "@/lib/api/finance.api";
 import { useBlobUrl } from "@/lib/api/use-blob-url";
+import { useFinanceDocument } from "@/lib/hooks/use-finance";
 
 const FRAME_SHELL =
   "w-full rounded-xl border border-slate-200 bg-slate-50 shadow-xs";
@@ -38,34 +37,6 @@ function PreviewError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function SealedPdfFrame({
-  contractId,
-  token,
-  contractNumber,
-  onRetry,
-}: {
-  contractId: string;
-  token: string;
-  contractNumber: string;
-  onRetry: () => void;
-}) {
-  const { url, error } = useBlobUrl(
-    token ? financeApi.getSealedDocumentPath(contractId) : null,
-    token || undefined
-  );
-
-  if (error) return <PreviewError onRetry={onRetry} />;
-  if (!url) return <PreviewSkeleton />;
-
-  return (
-    <iframe
-      src={`${url}#toolbar=0&navpanes=0`}
-      className={`${FRAME_SHELL} h-[700px]`}
-      title={`Sealed Contract ${contractNumber}`}
-    />
-  );
-}
-
 export function SealedPdfPreview({
   contractId,
   token,
@@ -75,15 +46,30 @@ export function SealedPdfPreview({
   token: string;
   contractNumber: string;
 }) {
-  const [attempt, setAttempt] = useState(0);
+  const { data, isError, refetch } = useFinanceDocument(token, contractId);
+  const {
+    url,
+    error: documentError,
+    retry,
+  } = useBlobUrl(data?.documentUrl ?? null, undefined, "application/pdf");
+
+  if (isError || documentError) {
+    return (
+      <PreviewError
+        onRetry={() => {
+          retry();
+          void refetch();
+        }}
+      />
+    );
+  }
+  if (!url) return <PreviewSkeleton />;
 
   return (
-    <SealedPdfFrame
-      key={attempt}
-      contractId={contractId}
-      token={token}
-      contractNumber={contractNumber}
-      onRetry={() => setAttempt((n) => n + 1)}
+    <iframe
+      src={url}
+      className={`${FRAME_SHELL} h-[700px]`}
+      title={`Sealed Contract ${contractNumber}`}
     />
   );
 }

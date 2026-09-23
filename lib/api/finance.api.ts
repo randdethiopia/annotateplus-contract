@@ -9,6 +9,7 @@ import type {
   CreateContractRequestBody,
   FinanceSummary,
   CreateContractResponseData,
+  FinanceDocumentResponseData,
   FinanceContractListItemDto,
   Paginated,
   RemindContractResponse,
@@ -92,12 +93,28 @@ export const financeApi = {
     return `/finance/contracts/${contractId}/document`;
   },
 
+  getSealedDocument(
+    token: string,
+    contractId: string
+  ): Promise<FinanceDocumentResponseData> {
+    return api<FinanceDocumentResponseData>(
+      financeApi.getSealedDocumentPath(contractId),
+      { token }
+    );
+  },
+
   async downloadSealedDocument(
     token: string,
     contractId: string,
     contractNumber: string
   ): Promise<void> {
-    const blob = await apiBlob(financeApi.getSealedDocumentPath(contractId), token);
+    const data = await financeApi.getSealedDocument(token, contractId);
+    const response = await fetch(data.documentUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download document (${response.status})`);
+    }
+
+    const blob = await response.blob();
     saveBlob(blob, `${contractNumber.replace(/[^\w]+/g, "_")}.pdf`);
   },
 

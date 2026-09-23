@@ -344,6 +344,11 @@ export interface FinanceContractListItemDto {
   expiresAt?: string;
 }
 
+export interface FinanceDocumentResponseData {
+  documentUrl: string;
+  expiresIn: number;
+}
+
 export interface FinanceSummary {
   reminderEligible: number;
 }

@@ -95,8 +95,23 @@ export function useCreateContract(token: string) {
   });
 }
 
+export function useFinanceDocument(token: string, contractId: string) {
+  return useQuery({
+    queryKey: ["finance-document", token, contractId],
+    queryFn: () => financeApi.getSealedDocument(token, contractId),
+    enabled: !!token && !!contractId,
+    // Document links are short-lived. Do not reuse one when the preview is
+    // reopened; the loaded iframe can keep using its URL for the current view.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+  });
+}
+
 export function useDownloadFinanceDocument(token: string) {
   return useMutation({
+    // Always request a new presigned URL at click time.
     mutationFn: ({ id, contractNumber }: { id: string; contractNumber: string }) =>
       financeApi.downloadSealedDocument(token, id, contractNumber),
   });
