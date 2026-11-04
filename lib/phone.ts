@@ -15,3 +15,16 @@ export function normalizePhoneToLocal(input: string): string {
   }
   return digits;
 }
+
+export function maskPhone(input: string | null | undefined): string {
+  const digits = (input ?? "").replace(/\D/g, "");
+  if (digits.length === 0) return "—";
+
+  const local =
+    digits.length === 12 && digits.startsWith("251")
+      ? digits.slice(3)
+      : digits.replace(/^0+/, "");
+
+  if (local.length < 6) return "—";
+  return `+251${"*".repeat(local.length - 3)}${local.slice(-3)}`;
+}

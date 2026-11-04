@@ -399,3 +399,289 @@ export interface RenewContractResponse {
   /** Absent on backends that dispatch out of band, like RemindContractResponse. */
   smsStatus?: SmsDispatchStatus;
 }
+
+// ============================================================
+// Payouts
+// ============================================================
+
+export type PayoutStatus =
+  | "DRAFT"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "PARTIALLY_COMPLETED"
+  | "FAILED";
+
+export type PayoutItemStatus = "STAGED" | "QUEUED" | "SUCCESS" | "FAILED";
+
+export type PayoutBatchSource = "JSON_PAYLOAD" | "CSV_UPLOAD";
+
+export interface TreasuryBalanceDto {
+  currency: string;
+  availableBalance: number;
+}
+
+export interface PayoutItemDto {
+  _id?: string;
+  reference: string;
+  contractId?: string;
+  contractNumber: string;
+  workerName: string;
+  bankName: string;
+  bankSlug: string;
+  maskedAccount: string;
+  amount: number;
+  status: PayoutItemStatus;
+  failureReason?: string;
+  executedAt?: string;
+  verifiedAt?: string;
+}
+
+export interface PayoutBatchDto {
+  batchId: string;
+  batchNumber: string;
+  title: string;
+  source: PayoutBatchSource;
+  status: PayoutStatus;
+  totalAmount: number;
+  totalItems: number;
+  successfulItems: number;
+  failedItems: number;
+  totalChunks: number;
+  nextChunkIndex: number;
+  dispatchHalted: boolean;
+  warnings?: string[];
+  createdAt: string;
+  items?: PayoutItemDto[];
+}
+
+export interface PayoutBatchDetailsDto {
+  batch: PayoutBatchDto;
+  items: PayoutItemDto[];
+}
+
+export interface SingleTransferRequestBody {
+  contractId: string;
+  amount: number;
+  paymentReason: string;
+}
+
+export interface SingleTransferResponseData {
+  reference: string;
+  status: PayoutItemStatus;
+  amount: number;
+}
+
+export interface ExecuteBatchResponseData {
+  batchId: string;
+}
+
+// ============================================================
+// Campaigns
+// ============================================================
+
+export type CampaignStatus =
+  | "DRAFT"
+  | "PENDING_APPROVAL"
+  | "APPROVED_BY_MANAGER"
+  | "DISBURSING"
+  | "DISBURSED"
+  | "CANCELLED";
+
+export type CampaignCompensationModel = "PER_TASK" | "FIXED" | "HYBRID_TIERED";
+
+export interface CampaignTaskTierDto {
+  tierName: string;
+  rateEtb: number;
+}
+
+export interface CampaignDefaultsDto {
+  model: CampaignCompensationModel;
+  defaultRatePerTaskEtb: number;
+  taskTiers?: CampaignTaskTierDto[];
+}
+
+export interface CampaignListItemDto {
+  _id: string;
+  campaignNumber: string;
+  title: string;
+  projectCode: string;
+  description?: string;
+  status: CampaignStatus;
+  compensationDefaults: CampaignDefaultsDto;
+  totalAmount: number;
+  totalWorkers: number;
+  approverName?: string;
+  approverPhone?: string;
+  payoutBatchId?: string;
+  payoutBatchNumber?: string;
+  payableWorkerCount?: number;
+  skippedWorkerCount?: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CampaignPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface CampaignListResponse {
+  data: CampaignListItemDto[];
+  pagination: CampaignPagination;
+}
+
+export interface CampaignListApiResponse {
+  items: CampaignListItemDto[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface CampaignQueryFilters {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+  projectCode?: string;
+}
+
+export interface CampaignSummaryDto {
+  totalCampaigns: number;
+  totalDisbursedEtb: number;
+  enrolledWorkers: number;
+  pendingApprovals: number;
+}
+
+export type CampaignWorkerStatus = "STAGED" | "APPROVED" | "SKIPPED" | "DISBURSED";
+
+export type CampaignSkipReason = "BELOW_MINIMUM" | "CONTRACT_NOT_PAYABLE" | "UNSUPPORTED_BANK";
+
+export interface CampaignWorkerItemDto {
+  _id: string;
+  campaignId: string;
+  contractId: string;
+  contractNumber: string;
+  workerName: string;
+  bankName: string;
+  bankSlug: string;
+  /** Server-masked; rendered verbatim, never re-masked. */
+  maskedAccount: string;
+  compensationType: WorkerCompensationType;
+  taskCount: number;
+  appliedRateEtb: number;
+  fixedAmountEtb: number;
+  bonusEtb: number;
+  deductionEtb: number;
+  adjustmentReason?: string;
+  netPayableEtb: number;
+  status: CampaignWorkerStatus;
+  skipReason?: CampaignSkipReason;
+}
+
+export interface CampaignDetailsDto {
+  campaign: CampaignListItemDto;
+  workers: CampaignWorkerItemDto[];
+}
+
+/** 202: DISBURSED means handed to the payout engine, not settled at the bank. */
+export interface DisburseCampaignResponseData {
+  success: true;
+  campaignNumber: string;
+  status: CampaignStatus;
+  batchId?: string;
+  batchNumber?: string;
+  payableWorkerCount: number;
+  skippedWorkerCount: number;
+  totalAmount: number;
+  alreadyDisbursed: boolean;
+  alreadyDispatching: boolean;
+}
+
+export interface CreateCampaignRequestBody {
+  title: string;
+  projectCode: string;
+  description?: string;
+  compensationDefaults: CampaignDefaultsDto;
+}
+
+/** Created in DRAFT. Older builds return the document itself, so either id may be present. */
+export interface CreateCampaignResponseData {
+  campaignId?: string;
+  _id?: string;
+}
+
+export interface AddCampaignWorkersRequestBody {
+  contractIds: string[];
+}
+
+export interface CampaignWorkerRecordDto {
+  _id?: string;
+  workerId?: string;
+  contractId?: string;
+}
+
+/**
+ * The response shape is not pinned down yet; it is read defensively to map
+ * each contractId onto the id the compensation endpoint expects.
+ */
+export interface AddCampaignWorkersResponseData {
+  workers?: CampaignWorkerRecordDto[];
+  items?: CampaignWorkerRecordDto[];
+}
+
+export type WorkerCompensationType = "TASK_BASED" | "FIXED" | "ADDENDUM";
+
+export interface WorkerCompensationRequestBody {
+  compensationType: WorkerCompensationType;
+  taskCount: number;
+  appliedRateEtb: number;
+  fixedAmountEtb?: number;
+  bonusEtb?: number;
+  deductionEtb?: number;
+  adjustmentReason?: string;
+}
+
+export interface SubmitCampaignApprovalRequestBody {
+  approverName: string;
+  /** E.164, e.g. "+251911223344". */
+  approverPhone: string;
+}
+
+// ============================================================
+// Manager approval portal (public capability link)
+// ============================================================
+
+export interface ApprovalWorkerDto {
+  workerName?: string;
+  contractNumber?: string;
+  bankName?: string;
+  /** Server-masked; rendered verbatim, never re-masked. */
+  bankAccountMasked?: string;
+  netPayableEtb?: number;
+}
+
+export interface ApprovalViewDto {
+  campaignNumber: string;
+  title: string;
+  projectCode: string;
+  totalAmount: number;
+  totalWorkers: number;
+  approverName: string;
+  approverPhoneMasked: string;
+  status: CampaignStatus;
+  otpExpiresAt: string;
+  workers: ApprovalWorkerDto[];
+  /** The fields below are optional so the portal degrades gracefully until the backend sends them. */
+  compensationDefaults?: Pick<CampaignDefaultsDto, "model">;
+  otpLocked?: boolean;
+  attemptsRemaining?: number;
+  approvedAt?: string;
+}
+
+export interface VerifyManagerOtpResponseData {
+  status?: CampaignStatus;
+  approvedAt?: string;
+}

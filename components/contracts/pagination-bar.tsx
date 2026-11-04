@@ -26,6 +26,8 @@ export function PaginationBar({
   onLimitChange,
   scrollTargetId = RESULTS_REGION_ID,
   isFetching = false,
+  noun = "contract",
+  nounPlural = "contracts",
   className,
 }: {
   /** From the URL, not from the response — see the note on `start` below. */
@@ -38,6 +40,8 @@ export function PaginationBar({
   /** Element scrolled to on a page change; also the `aria-controls` target. */
   scrollTargetId?: string;
   isFetching?: boolean;
+  noun?: string;
+  nounPlural?: string;
   className?: string;
 }) {
   const safeTotalPages = Math.max(totalPages, 1);
@@ -52,9 +56,9 @@ export function PaginationBar({
 
   const rangeLabel =
     total === 0
-      ? "Showing 0 contracts"
+      ? `Showing 0 ${nounPlural}`
       : `Showing ${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()} ${
-          total === 1 ? "contract" : "contracts"
+          total === 1 ? noun : nounPlural
         }`;
 
   function scrollToResults() {
