@@ -47,3 +47,8 @@ next-env.d.ts
 .claude/settings.local.json
 /FRONTEND_API_INTEGRATION_GUIDE.md/
 /DESIGN_SYSTEM.md
+
+# local design references
+/docs/
+/inspirations/
+/otpInspirations/
