@@ -1,3 +1,5 @@
+import type { ETHIOPIAN_REGIONS } from "@/lib/ethiopia";
+
 // ============================================================
 // Shared
 // ============================================================
@@ -398,4 +400,33 @@ export interface RenewContractResponse {
   nextReminderAt: string;
   /** Absent on backends that dispatch out of band, like RemindContractResponse. */
   smsStatus?: SmsDispatchStatus;
+}
+
+// ============================================================
+// Public candidate application
+// ============================================================
+
+export type CandidateGender = "MALE" | "FEMALE";
+
+export type VulnerabilityStatus = "PWD" | "REFUGEE" | "IDP" | "RETURNEE" | "NONE";
+
+export type EthiopianRegion = (typeof ETHIOPIAN_REGIONS)[number];
+
+export interface PublicCandidateApplyDto {
+  firstName: string;
+  fatherName: string;
+  grandfatherName: string;
+  phone: string;
+  email?: string;
+  gender: CandidateGender;
+  age: number;
+  region: EthiopianRegion;
+  vulnerabilityStatus: VulnerabilityStatus;
+  willingToAttendTraining: boolean;
+  source?: string;
+  website_hp?: string;
+}
+
+export interface PublicCandidateApplyResponseData {
+  applicationId?: string;
 }

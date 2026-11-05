@@ -15,3 +15,8 @@ export function normalizePhoneToLocal(input: string): string {
   }
   return digits;
 }
+
+export function normalizePhoneToE164(input: string): string {
+  const local = normalizePhoneToLocal(input);
+  return /^0[79]\d{8}$/.test(local) ? `+251${local.slice(1)}` : input.trim();
+}
