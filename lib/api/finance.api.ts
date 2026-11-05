@@ -61,6 +61,7 @@ export const financeApi = {
     const body: CreateContractRequestBody = {
       phone: normalizePhoneToLocal(input.phone),
       templateId: input.templateId || DEFAULT_TEMPLATE_ID,
+      candidateId: input.candidateId,
     };
 
     return api<CreateContractResponseData>("/finance/contracts", {

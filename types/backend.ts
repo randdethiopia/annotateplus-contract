@@ -298,6 +298,8 @@ export interface CreateContractRequestBody {
   phone: string;
   /** Id of a pre-vaulted agreement template; supplies the rate and clauses. */
   templateId: string;
+  /** Set when finance issued from the applicant pool rather than a typed number. */
+  candidateId?: string;
 }
 
 /** AfroMessage dispatch outcome for the invitation SMS. */
@@ -429,4 +431,23 @@ export interface PublicCandidateApplyDto {
 
 export interface PublicCandidateApplyResponseData {
   applicationId?: string;
+}
+
+export interface CandidateItemDto {
+  _id: string;
+  fullName: string;
+  phone: string;
+  age: number;
+  gender: CandidateGender;
+  region: EthiopianRegion;
+  vulnerabilityStatus: VulnerabilityStatus;
+  status: string;
+  createdAt: string;
+}
+
+export interface CandidateListResponse {
+  items: CandidateItemDto[];
+  total: number;
+  page: number;
+  limit: number;
 }

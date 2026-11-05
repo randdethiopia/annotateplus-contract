@@ -91,6 +91,8 @@ export function useCreateContract(token: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["finance-contracts"] });
       queryClient.invalidateQueries({ queryKey: ["finance-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
     },
   });
 }
