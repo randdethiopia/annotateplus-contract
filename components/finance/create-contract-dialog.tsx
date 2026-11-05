@@ -340,7 +340,7 @@ export function CreateContractDialog() {
                         <SelectContent
                           position="popper"
                           align="start"
-                          className="w-(--radix-select-trigger-width) rounded-2xl border-slate-200/90 bg-white p-1.5 shadow-xl"
+                          className="w-(--radix-select-trigger-width) rounded-2xl border-slate-200/90 bg-white p-1.5 shadow-lg"
                         >
                           {CONTRACT_TEMPLATES.map((template) => (
                             <SelectItem

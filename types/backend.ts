@@ -433,6 +433,13 @@ export interface PublicCandidateApplyResponseData {
   applicationId?: string;
 }
 
+export type CandidateStatus =
+  | "NEW"
+  | "SHORTLISTED"
+  | "CONTRACT_ISSUED"
+  | "REJECTED"
+  | "ARCHIVED";
+
 export interface CandidateItemDto {
   _id: string;
   fullName: string;
@@ -441,8 +448,18 @@ export interface CandidateItemDto {
   gender: CandidateGender;
   region: EthiopianRegion;
   vulnerabilityStatus: VulnerabilityStatus;
-  status: string;
+  status: CandidateStatus;
   createdAt: string;
+  /** Absent on applications captured before source tracking shipped. */
+  source?: string;
+  willingToAttendTraining?: boolean;
+  /** Set once finance issues from this applicant. */
+  contractId?: string;
+  contractNumber?: string;
+}
+
+export interface CandidateStatusUpdateResponseData {
+  status?: CandidateStatus;
 }
 
 export interface CandidateListResponse {

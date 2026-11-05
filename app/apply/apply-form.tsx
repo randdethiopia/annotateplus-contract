@@ -88,7 +88,7 @@ const SELECT_TRIGGER =
   "w-full justify-between rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-xs transition-all data-[size=default]:h-12 data-[placeholder]:text-slate-400 focus-visible:border-slate-900 focus-visible:ring-2 focus-visible:ring-slate-900/10 aria-invalid:bg-white aria-invalid:ring-0";
 
 const SELECT_CONTENT =
-  "max-h-64 overflow-y-auto rounded-2xl border-slate-200/90 bg-white p-1.5 shadow-xl";
+  "max-h-64 overflow-y-auto rounded-2xl border-slate-200/90 bg-white p-1.5 shadow-lg";
 
 const SELECT_ITEM =
   "cursor-pointer rounded-lg px-3 py-2.5 pr-8 text-sm text-slate-700 transition-colors focus:bg-slate-50 focus:text-slate-900";

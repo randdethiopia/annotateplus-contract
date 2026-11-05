@@ -18,6 +18,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CandidateStatusTag } from "@/components/candidates/candidate-status";
 import { CONTROL_COMPACT } from "@/components/system/control-styles";
 import { SEARCH_DEBOUNCE_MS } from "@/components/system/workstation";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -79,6 +80,7 @@ function ApplicantRow({
           <span className="truncate text-sm font-medium text-slate-900">
             {candidate.fullName}
           </span>
+          <CandidateStatusTag status={candidate.status} />
           <span className="text-xs text-slate-500">{candidate.age} yrs</span>
           <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
             {candidate.region}
@@ -125,13 +127,14 @@ function PickerBody({
 
   const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const { data, isLoading } = useCandidates(token ?? null, {
-    status: "NEW",
     search: debouncedSearch,
     region: region || undefined,
     limit: 100,
   });
 
-  const applicants = data?.items ?? [];
+  const applicants = (data?.items ?? []).filter(
+    (candidate) => candidate.status === "NEW" || candidate.status === "SHORTLISTED"
+  );
   const draft = applicants.find((candidate) => candidate._id === draftId) ?? null;
   const hasFilters = search.trim().length > 0 || region.length > 0;
 
@@ -177,7 +180,7 @@ function PickerBody({
           <SelectContent
             position="popper"
             align="end"
-            className="max-h-60 rounded-2xl border-slate-200/90 bg-white p-1.5 shadow-xl"
+            className="max-h-60 rounded-2xl border-slate-200/90 bg-white p-1.5 shadow-lg"
           >
             <SelectItem
               value={ALL_REGIONS}
@@ -222,7 +225,7 @@ function PickerBody({
         ) : applicants.length === 0 ? (
           <div className="px-6 py-16 text-center">
             <p className="text-sm text-slate-500">
-              No new applicants found matching your filter.
+              No available applicants (NEW or SHORTLISTED) found matching your filter.
             </p>
             {hasFilters && (
               <button

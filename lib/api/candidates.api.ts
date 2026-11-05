@@ -1,6 +1,8 @@
 import { api } from "./client";
 import type {
   CandidateListResponse,
+  CandidateStatus,
+  CandidateStatusUpdateResponseData,
   PublicCandidateApplyDto,
   PublicCandidateApplyResponseData,
 } from "@/types/backend";
@@ -9,6 +11,10 @@ export interface CandidateListParams {
   status?: string;
   search?: string;
   region?: string;
+  vulnerabilityStatus?: string;
+  ageMin?: number;
+  ageMax?: number;
+  page?: number;
   limit?: number;
 }
 
@@ -17,6 +23,10 @@ function buildCandidatesQuery(params: CandidateListParams = {}): string {
   if (params.status) query.set("status", params.status);
   if (params.search?.trim()) query.set("search", params.search.trim());
   if (params.region) query.set("region", params.region);
+  if (params.vulnerabilityStatus) query.set("vulnerabilityStatus", params.vulnerabilityStatus);
+  if (params.ageMin !== undefined) query.set("ageMin", String(params.ageMin));
+  if (params.ageMax !== undefined) query.set("ageMax", String(params.ageMax));
+  if (params.page) query.set("page", String(params.page));
   if (params.limit) query.set("limit", String(params.limit));
   return query.toString();
 }
@@ -35,4 +45,11 @@ export const candidatesApi = {
       { token }
     );
   },
+
+  updateStatus: (token: string, id: string, status: CandidateStatus, notes?: string) =>
+    api<CandidateStatusUpdateResponseData>(`/reviewer/candidates/${id}/status`, {
+      method: "POST",
+      token,
+      body: { status, notes },
+    }),
 };
