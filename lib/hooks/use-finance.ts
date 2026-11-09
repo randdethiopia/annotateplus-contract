@@ -7,7 +7,7 @@ import {
   type FinanceContractsParams,
 } from "@/lib/api/finance.api";
 import type { CreateContractInput } from "@/lib/validations/contract.schema";
-import type { BulkRemindParams } from "@/types/backend";
+import type { BulkIssueRequestBody, BulkRemindParams } from "@/types/backend";
 
 export function useFinanceContracts(token: string, params: FinanceContractsParams) {
   const filters = {
@@ -51,6 +51,28 @@ export function useBulkRemind(token: string) {
       queryClient.invalidateQueries({ queryKey: ["reviewer-contracts"] });
       queryClient.invalidateQueries({ queryKey: ["reviewer-kpis"] });
     },
+  });
+}
+
+export function useBulkIssueContracts(token: string) {
+  return useMutation({
+    mutationFn: (params: BulkIssueRequestBody) =>
+      financeApi.bulkIssueContracts(token, params),
+  });
+}
+
+export function useBulkJobStatus(token: string, jobId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["finance-bulk-job", token, jobId],
+    queryFn: () => financeApi.getBulkJobStatus(token, jobId!),
+    enabled: !!token && !!jobId && enabled,
+    refetchInterval: (query) =>
+      query.state.data?.status === "PROCESSING" ? 2000 : false,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    retry: 2,
   });
 }
 

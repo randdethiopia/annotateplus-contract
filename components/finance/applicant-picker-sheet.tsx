@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowRight, Check, X } from "lucide-react";
+import { useId, useMemo, useState } from "react";
+import { ArrowRight, Loader2, X, Zap } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -21,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CandidateStatusTag } from "@/components/candidates/candidate-status";
 import { CONTROL_COMPACT } from "@/components/system/control-styles";
 import { SEARCH_DEBOUNCE_MS } from "@/components/system/workstation";
+import { BULK_ISSUE_LIMIT } from "@/lib/api/finance.api";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ETHIOPIAN_REGIONS, VULNERABILITY_OPTIONS } from "@/lib/ethiopia";
 import { formatAgreementDate } from "@/lib/format-date";
@@ -36,6 +39,8 @@ export interface ApplicantPickerSheetProps {
   onOpenChange: (open: boolean) => void;
   onSelectCandidate: (candidate: CandidateItemDto) => void;
   selectedCandidateId: string | null;
+  onBulkIssue?: (candidateIds: string[]) => void;
+  isBulkIssuing?: boolean;
 }
 
 function vulnerabilityLabel(value: VulnerabilityStatus): string {
@@ -44,12 +49,12 @@ function vulnerabilityLabel(value: VulnerabilityStatus): string {
 
 function RowSkeleton() {
   return (
-    <div className="flex items-center justify-between gap-4 px-6 py-3.5">
+    <div className="flex items-center gap-4 px-6 py-3.5">
+      <Skeleton className="size-5 shrink-0 rounded-md" />
       <div className="min-w-0 flex-1 space-y-2">
         <Skeleton className="h-4 w-48" />
         <Skeleton className="h-3 w-64" />
       </div>
-      <Skeleton className="size-5 rounded-full" />
     </div>
   );
 }
@@ -57,24 +62,29 @@ function RowSkeleton() {
 function ApplicantRow({
   candidate,
   selected,
-  onSelect,
+  onToggle,
 }: {
   candidate: CandidateItemDto;
   selected: boolean;
-  onSelect: () => void;
+  onToggle: () => void;
 }) {
+  const checkboxId = useId();
+
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
+    <label
+      htmlFor={checkboxId}
       className={cn(
-        "flex w-full items-center justify-between gap-4 border-l-2 px-6 py-3.5 text-left transition-colors",
-        selected
-          ? "border-slate-900 bg-slate-50"
-          : "border-transparent hover:bg-slate-50/80"
+        "flex w-full cursor-pointer items-start gap-3.5 border-l-2 px-6 py-3.5 text-left transition-colors",
+        selected ? "border-slate-900 bg-slate-50" : "border-transparent hover:bg-slate-50/80"
       )}
     >
+      <Checkbox
+        id={checkboxId}
+        checked={selected}
+        onCheckedChange={onToggle}
+        aria-label={`Select ${candidate.fullName}`}
+        className="mt-0.5"
+      />
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
           <span className="truncate text-sm font-medium text-slate-900">
@@ -98,16 +108,7 @@ function ApplicantRow({
           </span>
         </span>
       </span>
-      <span
-        aria-hidden
-        className={cn(
-          "flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors",
-          selected ? "border-slate-900 bg-slate-900" : "border-slate-300"
-        )}
-      >
-        {selected && <Check className="size-3 text-white" />}
-      </span>
-    </button>
+    </label>
   );
 }
 
@@ -115,13 +116,19 @@ function PickerBody({
   onSelectCandidate,
   onOpenChange,
   selectedCandidateId,
+  onBulkIssue,
+  isBulkIssuing,
 }: {
   onSelectCandidate: (candidate: CandidateItemDto) => void;
   onOpenChange: (open: boolean) => void;
   selectedCandidateId: string | null;
+  onBulkIssue?: (candidateIds: string[]) => void;
+  isBulkIssuing?: boolean;
 }) {
   const { token } = useAuth();
-  const [draftId, setDraftId] = useState<string | null>(selectedCandidateId);
+  const [draftIds, setDraftIds] = useState<string[]>(
+    selectedCandidateId ? [selectedCandidateId] : []
+  );
   const [search, setSearch] = useState("");
   const [region, setRegion] = useState("");
 
@@ -132,17 +139,81 @@ function PickerBody({
     limit: 100,
   });
 
-  const applicants = (data?.items ?? []).filter(
-    (candidate) => candidate.status === "NEW" || candidate.status === "SHORTLISTED"
+  const applicants = useMemo(
+    () =>
+      (data?.items ?? []).filter(
+        (candidate) => candidate.status === "NEW" || candidate.status === "SHORTLISTED"
+      ),
+    [data?.items]
   );
-  const draft = applicants.find((candidate) => candidate._id === draftId) ?? null;
-  const hasFilters = search.trim().length > 0 || region.length > 0;
 
-  function confirm() {
-    if (!draft) return;
-    onSelectCandidate(draft);
+  const selectedSet = useMemo(() => new Set(draftIds), [draftIds]);
+  const selectedCount = draftIds.length;
+  const singleDraft =
+    selectedCount === 1
+      ? (applicants.find((candidate) => candidate._id === draftIds[0]) ?? null)
+      : null;
+  const hasFilters = search.trim().length > 0 || region.length > 0;
+  const allFilteredSelected =
+    applicants.length > 0 && applicants.every((candidate) => selectedSet.has(candidate._id));
+
+  function toggleCandidate(id: string) {
+    setDraftIds((current) => {
+      if (current.includes(id)) {
+        return current.filter((item) => item !== id);
+      }
+      if (current.length >= BULK_ISSUE_LIMIT) {
+        toast.error(`A single batch is capped at ${BULK_ISSUE_LIMIT} candidates.`);
+        return current;
+      }
+      return [...current, id];
+    });
+  }
+
+  function selectAllFiltered() {
+    setDraftIds((current) => {
+      const next = [...current];
+      const known = new Set(current);
+      let capped = false;
+
+      for (const candidate of applicants) {
+        if (known.has(candidate._id)) continue;
+        if (next.length >= BULK_ISSUE_LIMIT) {
+          capped = true;
+          break;
+        }
+        next.push(candidate._id);
+        known.add(candidate._id);
+      }
+
+      if (capped) {
+        toast.info(`Selected first ${BULK_ISSUE_LIMIT} candidates (maximum batch limit).`);
+      }
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setDraftIds([]);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setRegion("");
+  }
+
+  function confirmSingle() {
+    if (!singleDraft) return;
+    onSelectCandidate(singleDraft);
     onOpenChange(false);
   }
+
+  function startBulkIssue() {
+    if (!onBulkIssue || selectedCount < 2) return;
+    onBulkIssue(draftIds);
+  }
+
+  const isBulk = selectedCount > 1 && !!onBulkIssue;
 
   return (
     <>
@@ -151,10 +222,11 @@ function PickerBody({
           Finance / Contracts / Candidate Pool
         </p>
         <SheetTitle className="mt-1 text-xl font-bold text-slate-900">
-          Select Worker from Candidate Pool
+          Select Workers from Candidate Pool
         </SheetTitle>
         <SheetDescription className="mt-0.5 text-sm text-slate-500">
-          Filter and select verified applicants to generate their official contract.
+          Filter and select verified applicants to generate their official contracts. Pick one to
+          review it before issuing, or several to issue them as a batch.
         </SheetDescription>
       </SheetHeader>
 
@@ -202,10 +274,7 @@ function PickerBody({
         {hasFilters && (
           <button
             type="button"
-            onClick={() => {
-              setSearch("");
-              setRegion("");
-            }}
+            onClick={clearFilters}
             className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-slate-900/10 focus-visible:outline-none"
           >
             <X className="size-3.5" aria-hidden />
@@ -213,6 +282,41 @@ function PickerBody({
           </button>
         )}
       </div>
+
+      {!isLoading && applicants.length > 0 && (
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b bg-white px-6 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={selectAllFiltered}
+              disabled={allFilteredSelected || selectedCount >= BULK_ISSUE_LIMIT}
+            >
+              <Zap className="size-3.5" aria-hidden />
+              Select All Filtered ({applicants.length} · max {BULK_ISSUE_LIMIT})
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={clearSelection}
+              disabled={selectedCount === 0}
+            >
+              <X className="size-3.5" aria-hidden />
+              Clear Selection
+            </Button>
+          </div>
+          <p
+            aria-live="polite"
+            className={cn(
+              "tabular text-sm font-semibold",
+              selectedCount > 0 ? "text-slate-900" : "text-slate-400"
+            )}
+          >
+            {selectedCount} of {applicants.length} selected
+          </p>
+        </div>
+      )}
 
       <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
         {isLoading ? (
@@ -230,10 +334,7 @@ function PickerBody({
             {hasFilters && (
               <button
                 type="button"
-                onClick={() => {
-                  setSearch("");
-                  setRegion("");
-                }}
+                onClick={clearFilters}
                 className="mt-2 text-xs font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900"
               >
                 Clear filters
@@ -245,28 +346,52 @@ function PickerBody({
             <ApplicantRow
               key={candidate._id}
               candidate={candidate}
-              selected={candidate._id === draftId}
-              onSelect={() => setDraftId(candidate._id)}
+              selected={selectedSet.has(candidate._id)}
+              onToggle={() => toggleCandidate(candidate._id)}
             />
           ))
         )}
       </div>
 
       <div className="mt-auto flex shrink-0 items-center justify-between gap-4 border-t bg-white/90 px-6 py-4 backdrop-blur-md">
-        <p className="min-w-0 truncate text-xs font-medium text-slate-800">
-          {draft ? (
+        <p className="min-w-0 truncate text-sm font-semibold text-slate-900">
+          {selectedCount === 0 ? (
+            <span className="font-medium text-slate-400">No applicant selected</span>
+          ) : singleDraft ? (
             <>
-              Selected: {draft.fullName}{" "}
-              <span className="tabular font-mono text-slate-500">({draft.phone})</span>
+              Selected: {singleDraft.fullName}{" "}
+              <span className="tabular font-mono text-xs font-medium text-slate-500">
+                ({singleDraft.phone})
+              </span>
             </>
           ) : (
-            <span className="text-slate-400">No applicant selected</span>
+            <>
+              Selected: <span className="tabular">{selectedCount}</span> candidates
+            </>
           )}
         </p>
-        <Button type="button" className="h-11 shrink-0" disabled={!draft} onClick={confirm}>
-          Confirm Selection
-          <ArrowRight className="size-4" aria-hidden />
-        </Button>
+        {isBulk ? (
+          <Button
+            type="button"
+            className="h-11 shrink-0"
+            disabled={isBulkIssuing}
+            onClick={startBulkIssue}
+          >
+            {isBulkIssuing && <Loader2 className="size-4 animate-spin" aria-hidden />}
+            {isBulkIssuing ? "Starting batch…" : `Bulk Issue ${selectedCount} Contracts`}
+            {!isBulkIssuing && <ArrowRight className="size-4" aria-hidden />}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            className="h-11 shrink-0"
+            disabled={!singleDraft}
+            onClick={confirmSingle}
+          >
+            Confirm Selection
+            <ArrowRight className="size-4" aria-hidden />
+          </Button>
+        )}
       </div>
     </>
   );
@@ -277,6 +402,8 @@ export function ApplicantPickerSheet({
   onOpenChange,
   onSelectCandidate,
   selectedCandidateId,
+  onBulkIssue,
+  isBulkIssuing,
 }: ApplicantPickerSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -288,6 +415,8 @@ export function ApplicantPickerSheet({
           onSelectCandidate={onSelectCandidate}
           onOpenChange={onOpenChange}
           selectedCandidateId={selectedCandidateId}
+          onBulkIssue={onBulkIssue}
+          isBulkIssuing={isBulkIssuing}
         />
       </SheetContent>
     </Sheet>

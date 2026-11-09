@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { CopyValueButton } from "@/components/contracts/copy-value-button";
 import { ApplicantPickerSheet } from "@/components/finance/applicant-picker-sheet";
+import { useBulkJobTracker } from "@/components/finance/bulk-job-tracker";
 import { Field } from "@/components/system/field";
 import { CONTROL, CONTROL_INVALID } from "@/components/system/control-styles";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -32,7 +33,7 @@ import {
   DEFAULT_TEMPLATE_ID,
   type ContractTemplate,
 } from "@/lib/contract-templates";
-import { useCreateContract } from "@/lib/hooks/use-finance";
+import { useBulkIssueContracts, useCreateContract } from "@/lib/hooks/use-finance";
 import { describeError } from "@/lib/describe-error";
 import { cn } from "@/lib/utils";
 import {
@@ -135,8 +136,10 @@ export function CreateContractDialog() {
   const [sourceMode, setSourceMode] = useState<SourceMode>("applicant");
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateItemDto | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { trackBulkJob } = useBulkJobTracker();
 
   const { mutate: createContract, isPending } = useCreateContract(token ?? "");
+  const { mutate: bulkIssue, isPending: isBulkIssuing } = useBulkIssueContracts(token ?? "");
 
   const {
     control,
@@ -180,6 +183,28 @@ export function CreateContractDialog() {
   function selectCandidate(candidate: CandidateItemDto) {
     setSelectedCandidate(candidate);
     setValue("phone", candidate.phone, { shouldValidate: true });
+  }
+
+  function startBulkIssue(candidateIds: string[]) {
+    bulkIssue(
+      { candidateIds, templateId: templateId || DEFAULT_TEMPLATE_ID },
+      {
+        onSuccess: (data) => {
+          setPickerOpen(false);
+          setOpen(false);
+          clearForm();
+          setSourceMode("applicant");
+          trackBulkJob(data.jobId);
+          toast.success(
+            `Issuing ${data.totalRequested.toLocaleString()} contracts in the background.`
+          );
+        },
+        onError: (err) => {
+          console.error("Bulk issue contracts failed", err);
+          toast.error(describeError(err, "Could not start the bulk issuance"));
+        },
+      }
+    );
   }
 
   function onSubmit(values: CreateContractInput) {
@@ -454,6 +479,8 @@ export function CreateContractDialog() {
         onOpenChange={setPickerOpen}
         onSelectCandidate={selectCandidate}
         selectedCandidateId={selectedCandidate?._id ?? null}
+        onBulkIssue={startBulkIssue}
+        isBulkIssuing={isBulkIssuing}
       />
     </>
   );
