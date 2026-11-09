@@ -11,6 +11,7 @@ import { RESULTS_REGION_ID } from "@/components/system/workstation";
 import { FinanceTable, FinanceTableSkeleton } from "@/components/finance/finance-table";
 import { BulkRemindBar } from "@/components/finance/bulk-remind-bar";
 import { CreateContractDialog } from "@/components/finance/create-contract-dialog";
+import { DeskSwitcher } from "@/components/finance/payouts/desk-switcher";
 import { FinanceDetailSheet } from "@/components/contracts/finance-detail-sheet";
 import { PaginationBar } from "@/components/contracts/pagination-bar";
 import { Button } from "@/components/ui/button";
@@ -188,6 +189,8 @@ export default function FinancePage() {
           <CreateContractDialog />
         </div>
       </div>
+
+      <DeskSwitcher />
 
       <MetricsStrip
         isLoading={kpis.isLoading}

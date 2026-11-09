@@ -23,6 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  CapabilityTooltip,
+  capabilityMessage,
+} from "@/components/auth/capability-tooltip";
 import { CopyValueButton } from "@/components/contracts/copy-value-button";
 import { Field } from "@/components/system/field";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -32,6 +36,7 @@ import {
   type ContractTemplate,
 } from "@/lib/contract-templates";
 import { useCreateContract } from "@/lib/hooks/use-finance";
+import { useHasPermission } from "@/lib/hooks/use-permission";
 import { describeError } from "@/lib/describe-error";
 import {
   createContractSchema,
@@ -89,6 +94,7 @@ function buildInviteLink(invitePath: string): string {
 
 export function CreateContractDialog() {
   const { token } = useAuth();
+  const canCreate = useHasPermission("contracts:create");
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<CreateContractResponseData | null>(null);
   // The response does not echo the phone back and `reset()` clears the field,
@@ -142,6 +148,20 @@ export function CreateContractDialog() {
 
   const inviteLink = result ? buildInviteLink(result.inviteLink) : "";
   const smsStatus = result?.smsStatus ? SMS_STATUS[result.smsStatus] : null;
+
+  if (!canCreate) {
+    return (
+      <CapabilityTooltip
+        message={capabilityMessage("contracts:create")}
+        className="flex-1 sm:flex-none"
+      >
+        <Button type="button" className="w-full" disabled>
+          <Plus className="size-4" aria-hidden />
+          New Contract
+        </Button>
+      </CapabilityTooltip>
+    );
+  }
 
   return (
     <Dialog
@@ -315,7 +335,7 @@ export function CreateContractDialog() {
               <Button type="button" variant="ghost" onClick={closeDialog} disabled={isPending}>
                 Cancel
               </Button>
-              <Button type="submit" className="h-11" disabled={isPending}>
+              <Button type="submit" className="h-11" disabled={isPending || !canCreate}>
                 {isPending && <Loader2 className="size-4 animate-spin" />}
                 {isPending ? "Issuing & Dispatching SMS…" : "Issue Contract & Dispatch SMS"}
               </Button>

@@ -12,13 +12,7 @@ import { Field } from "@/components/system/field";
 import { useAuth } from "@/lib/auth/auth-context";
 import { describeError } from "@/lib/describe-error";
 import { loginSchema, type LoginInput } from "@/lib/validations/contract.schema";
-import type { StaffUserDto } from "@/types/backend";
-
-const HOME_HREF: Record<StaffUserDto["role"], string> = {
-  HR_REVIEWER: "/hr",
-  FINANCE: "/finance",
-  ADMIN: "/hr",
-};
+import { landingHref } from "@/lib/auth/landing";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,7 +30,7 @@ export default function LoginPage() {
   async function onSubmit(values: LoginInput) {
     try {
       const user = await login(values.email, values.password);
-      router.push(HOME_HREF[user.role]);
+      router.push(landingHref(user));
     } catch (err) {
       console.error("Login failed", err);
       toast.error(describeError(err, "Sign in failed"));

@@ -22,7 +22,6 @@ import {
   isRowAdjusted,
   netPayableCents,
   parseAmount,
-  toEthiopianE164,
   type WorkerRowDraft,
 } from "@/lib/campaign-math";
 import { useSubmitCampaign } from "@/lib/hooks/use-campaigns";
@@ -44,7 +43,7 @@ export default function NewCampaignPage() {
   const authToken = token ?? "";
 
   const [settings, setSettings] = useState<CampaignSettingsDraft>(INITIAL_SETTINGS);
-  const [approver, setApprover] = useState<ApproverDraft>({ name: "", phone: "" });
+  const [approver, setApprover] = useState<ApproverDraft>({ approverId: "" });
   const [rows, setRows] = useState<Record<string, WorkerRowDraft>>({});
 
   const signed = useReviewerContracts(authToken, {
@@ -77,20 +76,17 @@ export default function NewCampaignPage() {
     return { enrolled: list, totalCents: cents };
   }, [rows, settings.defaultRate, settings.model, workers]);
 
-  const approverPhone = toEthiopianE164(approver.phone);
-
   const missing = [
     !settings.title.trim() && "campaign title",
     !settings.projectCode.trim() && "project code",
     parseAmount(settings.defaultRate) <= 0 &&
       (settings.model === "FIXED" ? "default fixed fee" : "default rate"),
     enrolled.length === 0 && "at least one annotator",
-    !approver.name.trim() && "approver name",
-    !approverPhone && "approver phone",
+    !approver.approverId && "designated approver",
   ].filter((item): item is string => typeof item === "string");
 
   function handleSubmit() {
-    if (missing.length > 0 || !approverPhone) return;
+    if (missing.length > 0) return;
 
     pipeline.submit(
       {
@@ -112,7 +108,7 @@ export default function NewCampaignPage() {
             payload: buildCompensationPayload(row, settings.model, settings.defaultRate),
           };
         }),
-        approval: { approverName: approver.name.trim(), approverPhone },
+        approval: { approverId: approver.approverId },
       },
       { onSuccess: () => router.push("/hr/campaigns") }
     );
@@ -156,6 +152,7 @@ export default function NewCampaignPage() {
         />
 
         <ApproverSection
+          token={authToken}
           value={approver}
           onChange={(patch) => setApprover((prev) => ({ ...prev, ...patch }))}
         />

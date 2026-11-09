@@ -1,5 +1,5 @@
 import { Suspense, type ReactNode } from "react";
-import { RequireRole } from "@/components/auth/require-role";
+import { RequirePermission } from "@/components/auth/require-permission";
 import { AppHeader } from "@/components/app-header";
 import { ContractTableSkeleton } from "@/components/contracts/contract-table-skeleton";
 
@@ -9,11 +9,15 @@ import { ContractTableSkeleton } from "@/components/contracts/contract-table-ske
  */
 export default function HrLayout({ children }: { children: ReactNode }) {
   return (
-    <RequireRole role={["HR_REVIEWER", "ADMIN"]}>
+    <RequirePermission
+      anyPermission={["contracts:review", "campaigns:create"]}
+      roles={["ADMIN", "HR_REVIEWER"]}
+      homeHref="/hr"
+    >
       <div className="min-h-screen bg-background">
         <AppHeader workspace="HR" homeHref="/hr" />
         {/* The page reads queue state from useSearchParams, which bails out of
-            static prerendering. RequireRole happens to short-circuit before the
+            static prerendering. RequirePermission happens to short-circuit before the
             page renders on the server, so the build is green either way — but
             that is an accident of the auth gate, not a guarantee, and without a
             boundary here the bail-out is a build error. */}
@@ -21,6 +25,6 @@ export default function HrLayout({ children }: { children: ReactNode }) {
           <Suspense fallback={<ContractTableSkeleton variant="hr" />}>{children}</Suspense>
         </main>
       </div>
-    </RequireRole>
+    </RequirePermission>
   );
 }

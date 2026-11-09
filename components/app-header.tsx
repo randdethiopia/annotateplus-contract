@@ -6,20 +6,45 @@ import { BrandLogo } from "@/components/branding/brand-logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/auth-context";
 import { getInitials } from "@/lib/initials";
+import { hasAnyPermission } from "@/lib/hooks/use-permission";
+import { hrLandingHref } from "@/lib/auth/landing";
 import { cn } from "@/lib/utils";
-import type { UserRole } from "@/types/backend";
+import type { StaffPermission, StaffUserDto, UserRole } from "@/types/backend";
 
 interface NavItem {
   href: string;
   label: string;
+  permissions: StaffPermission[];
   roles: UserRole[];
+  landingHref?: (user: StaffUserDto) => string;
+}
+
+interface NavDestination {
+  key: string;
+  href: string;
+  label: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/hr", label: "HR", roles: ["HR_REVIEWER", "ADMIN"] },
-  { href: "/finance", label: "Finance", roles: ["FINANCE", "ADMIN"] },
-  { href: "/admin", label: "Admin", roles: ["ADMIN"] },
+  {
+    href: "/hr",
+    label: "HR",
+    permissions: ["contracts:review", "campaigns:create"],
+    roles: ["ADMIN"],
+    landingHref: hrLandingHref,
+  },
+  {
+    href: "/finance",
+    label: "Finance",
+    permissions: ["contracts:create", "payouts:disburse"],
+    roles: ["ADMIN"],
+  },
+  { href: "/admin", label: "Admin", permissions: ["audit:view"], roles: ["ADMIN"] },
 ];
+
+function canReach(user: StaffUserDto, item: NavItem): boolean {
+  return hasAnyPermission(user, item.permissions) || item.roles.includes(user.role);
+}
 
 /**
  * Top navigation for every workspace. Replaces the old left rail so the data
@@ -46,7 +71,13 @@ export function AppHeader({
     router.push("/login");
   }
 
-  const destinations = user ? NAV_ITEMS.filter((item) => item.roles.includes(user.role)) : [];
+  const destinations: NavDestination[] = user
+    ? NAV_ITEMS.filter((item) => canReach(user, item)).map((item) => ({
+        key: item.href,
+        href: item.landingHref ? item.landingHref(user) : item.href,
+        label: item.label,
+      }))
+    : [];
   // Nav links would be clutter for someone with nowhere else to go, so HR and
   // finance staff keep the plain badge and only admins get the switcher.
   const showNav = destinations.length > 1;
@@ -67,10 +98,10 @@ export function AppHeader({
             className="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1"
           >
             {destinations.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const isActive = pathname === item.key || pathname.startsWith(`${item.key}/`);
               return (
                 <Link
-                  key={item.href}
+                  key={item.key}
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(

@@ -2,15 +2,31 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useHasPermission } from "@/lib/hooks/use-permission";
 import { cn } from "@/lib/utils";
+import type { StaffPermission } from "@/types/backend";
 
-const VIEWS = [
+interface DeskView {
+  href: string;
+  label: string;
+  permission?: StaffPermission;
+}
+
+const VIEWS: readonly DeskView[] = [
   { href: "/finance", label: "Contracts" },
-  { href: "/finance/payouts", label: "Payouts Desk" },
+  { href: "/finance/payouts", label: "Payouts Desk", permission: "payouts:disburse" },
 ] as const;
 
 export function DeskSwitcher({ className }: { className?: string }) {
   const pathname = usePathname();
+  const canDisburse = useHasPermission("payouts:disburse");
+  const granted: Partial<Record<StaffPermission, boolean>> = {
+    "payouts:disburse": canDisburse,
+  };
+
+  const views = VIEWS.filter((view) => !view.permission || granted[view.permission] === true);
+
+  if (views.length < 2) return null;
 
   return (
     <nav
@@ -20,7 +36,7 @@ export function DeskSwitcher({ className }: { className?: string }) {
         className
       )}
     >
-      {VIEWS.map((view) => {
+      {views.map((view) => {
         const isActive = pathname === view.href;
         return (
           <Link

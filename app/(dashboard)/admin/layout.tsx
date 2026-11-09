@@ -1,11 +1,11 @@
 import { Suspense, type ReactNode } from "react";
-import { RequireRole } from "@/components/auth/require-role";
+import { RequirePermission } from "@/components/auth/require-permission";
 import { AppHeader } from "@/components/app-header";
 import { ContractTableSkeleton } from "@/components/contracts/contract-table-skeleton";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <RequireRole role="ADMIN">
+    <RequirePermission permission="audit:view" roles={["ADMIN"]} homeHref="/admin">
       <div className="bg-background min-h-screen">
         <AppHeader workspace="ADMIN" homeHref="/admin" />
         {/* See the note in hr/layout.tsx — useSearchParams needs a boundary. */}
@@ -13,6 +13,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <Suspense fallback={<ContractTableSkeleton variant="admin" />}>{children}</Suspense>
         </main>
       </div>
-    </RequireRole>
+    </RequirePermission>
   );
 }

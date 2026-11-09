@@ -73,11 +73,24 @@ export interface PresignedUploadResponseData {
 // Auth
 // ============================================================
 
+export const STAFF_PERMISSIONS = [
+  "contracts:create",
+  "contracts:review",
+  "campaigns:create",
+  "campaigns:request_otp",
+  "payouts:disburse",
+  "audit:view",
+] as const;
+
+export type StaffPermission = (typeof STAFF_PERMISSIONS)[number];
+
 export interface StaffUserDto {
   _id: string;
   email: string;
   fullName: string;
+  phone: string | null;
   role: UserRole;
+  permissions: StaffPermission[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -644,10 +657,16 @@ export interface WorkerCompensationRequestBody {
   adjustmentReason?: string;
 }
 
+export interface CampaignApproverDto {
+  _id: string;
+  fullName: string;
+  title: string;
+  phoneMasked: string;
+  isActive: boolean;
+}
+
 export interface SubmitCampaignApprovalRequestBody {
-  approverName: string;
-  /** E.164, e.g. "+251911223344". */
-  approverPhone: string;
+  approverId: string;
 }
 
 // ============================================================

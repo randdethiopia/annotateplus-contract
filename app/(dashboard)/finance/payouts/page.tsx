@@ -23,6 +23,7 @@ import {
   PayoutsTableSkeleton,
 } from "@/components/finance/payouts/payouts-table";
 import { TreasuryBalanceBanner } from "@/components/finance/payouts/treasury-balance-banner";
+import { RequirePermission } from "@/components/auth/require-permission";
 import { useAuth } from "@/lib/auth/auth-context";
 import { fromCents, toCents } from "@/lib/campaign-math";
 import { useActiveBatch } from "@/lib/hooks/use-active-batch";
@@ -47,7 +48,7 @@ function matches(item: PayoutItemDto, needle: string): boolean {
   );
 }
 
-export default function PayoutsPage() {
+function PayoutsWorkstation() {
   const { token } = useAuth();
   const authToken = token ?? "";
   const { batchId, setBatchId, clearBatch } = useActiveBatch();
@@ -276,5 +277,13 @@ export default function PayoutsPage() {
         isDisbursing={disburse.isPending}
       />
     </div>
+  );
+}
+
+export default function PayoutsPage() {
+  return (
+    <RequirePermission permission="payouts:disburse" homeHref="/finance" inset>
+      <PayoutsWorkstation />
+    </RequirePermission>
   );
 }

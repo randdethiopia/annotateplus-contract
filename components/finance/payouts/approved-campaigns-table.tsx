@@ -6,8 +6,13 @@ import { CampaignsTableSkeleton } from "@/components/hr/campaigns/campaigns-tabl
 import { EmptyState } from "@/components/system/empty-state";
 import { QueueShell } from "@/components/system/queue-shell";
 import { Button } from "@/components/ui/button";
+import {
+  CapabilityTooltip,
+  capabilityMessage,
+} from "@/components/auth/capability-tooltip";
 import { describeError } from "@/lib/describe-error";
 import { useCampaigns } from "@/lib/hooks/use-campaigns";
+import { useHasPermission } from "@/lib/hooks/use-permission";
 import { formatEtb } from "@/lib/money";
 import { maskPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
@@ -90,6 +95,44 @@ interface RowActionProps {
   onDisburse: (campaign: CampaignListItemDto) => void;
 }
 
+const RELEASE_BUTTON_CLASS = "h-auto rounded-lg px-3.5 py-1.5 text-xs font-medium";
+
+function ReleaseFundsButton({
+  item,
+  isBusy,
+  onDisburse,
+}: {
+  item: CampaignListItemDto;
+  isBusy: boolean;
+  onDisburse: (campaign: CampaignListItemDto) => void;
+}) {
+  const canDisburse = useHasPermission("payouts:disburse");
+
+  if (!canDisburse) {
+    return (
+      <CapabilityTooltip message={capabilityMessage("payouts:disburse")}>
+        <Button type="button" size="sm" className={RELEASE_BUTTON_CLASS} disabled>
+          Release Funds
+          <ArrowRight className="size-3.5" aria-hidden />
+        </Button>
+      </CapabilityTooltip>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      className={RELEASE_BUTTON_CLASS}
+      disabled={isBusy}
+      onClick={() => onDisburse(item)}
+    >
+      Release Funds
+      <ArrowRight className="size-3.5" aria-hidden />
+    </Button>
+  );
+}
+
 function RowActions({ item, isBusy, onReview, onDisburse }: RowActionProps) {
   return (
     <div className="flex items-center justify-end gap-2.5 whitespace-nowrap">
@@ -102,16 +145,7 @@ function RowActions({ item, isBusy, onReview, onDisburse }: RowActionProps) {
       >
         Review Dossier
       </Button>
-      <Button
-        type="button"
-        size="sm"
-        className="h-auto rounded-lg px-3.5 py-1.5 text-xs font-medium"
-        disabled={isBusy}
-        onClick={() => onDisburse(item)}
-      >
-        Release Funds
-        <ArrowRight className="size-3.5" aria-hidden />
-      </Button>
+      <ReleaseFundsButton item={item} isBusy={isBusy} onDisburse={onDisburse} />
     </div>
   );
 }

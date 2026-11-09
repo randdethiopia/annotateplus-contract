@@ -38,6 +38,16 @@ export function useCampaigns(token: string, filters: CampaignQueryFilters) {
   });
 }
 
+export function useApprovers(token: string | null) {
+  return useQuery({
+    queryKey: ["campaign-approvers"],
+    queryFn: () => campaignsApi.getApprovers(token as string),
+    enabled: !!token,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
 export function useCampaign(token: string, campaignId: string | null) {
   return useQuery({
     queryKey: ["campaign", token, campaignId],

@@ -6,6 +6,7 @@ import type {
   AddCampaignWorkersResponseData,
   CampaignListApiResponse,
   CampaignDetailsDto,
+  CampaignApproverDto,
   CampaignListResponse,
   CampaignQueryFilters,
   CampaignSummaryDto,
@@ -54,6 +55,12 @@ export const campaignsApi = {
 
   getSummary(token: string): Promise<CampaignSummaryDto> {
     return api<CampaignSummaryDto>("/campaigns/summary", { token });
+  },
+
+  getApprovers(token: string): Promise<CampaignApproverDto[]> {
+    return api<CampaignApproverDto[] | { items: CampaignApproverDto[] }>("/campaigns/approvers", {
+      token,
+    }).then((response) => (Array.isArray(response) ? response : (response?.items ?? [])));
   },
 
   createCampaign(

@@ -1,11 +1,15 @@
 import { Suspense, type ReactNode } from "react";
-import { RequireRole } from "@/components/auth/require-role";
+import { RequirePermission } from "@/components/auth/require-permission";
 import { AppHeader } from "@/components/app-header";
 import { ContractTableSkeleton } from "@/components/contracts/contract-table-skeleton";
 
 export default function FinanceLayout({ children }: { children: ReactNode }) {
   return (
-    <RequireRole role={["FINANCE", "ADMIN"]}>
+    <RequirePermission
+      anyPermission={["contracts:create", "payouts:disburse"]}
+      roles={["ADMIN", "FINANCE"]}
+      homeHref="/finance"
+    >
       <div className="bg-background min-h-screen">
         <AppHeader workspace="FINANCE" homeHref="/finance" />
         {/* See the note in hr/layout.tsx — useSearchParams needs a boundary. */}
@@ -13,6 +17,6 @@ export default function FinanceLayout({ children }: { children: ReactNode }) {
           <Suspense fallback={<ContractTableSkeleton variant="finance" />}>{children}</Suspense>
         </main>
       </div>
-    </RequireRole>
+    </RequirePermission>
   );
 }

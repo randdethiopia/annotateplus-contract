@@ -11,9 +11,15 @@ import { QueueShell } from "@/components/system/queue-shell";
 import { RESULTS_REGION_ID } from "@/components/system/workstation";
 import { PaginationBar } from "@/components/contracts/pagination-bar";
 import { Button } from "@/components/ui/button";
+import {
+  CapabilityTooltip,
+  capabilityMessage,
+} from "@/components/auth/capability-tooltip";
+import { RequirePermission } from "@/components/auth/require-permission";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useCampaignParams } from "@/lib/hooks/use-campaign-params";
 import { useCampaignKpis, useCampaigns } from "@/lib/hooks/use-campaigns";
+import { useHasPermission } from "@/lib/hooks/use-permission";
 import { useClampPage } from "@/lib/hooks/use-clamp-page";
 import { describeError } from "@/lib/describe-error";
 import { formatAgreementDate } from "@/lib/format-date";
@@ -27,7 +33,31 @@ function TodayChip() {
   );
 }
 
-export default function CampaignsPage() {
+function CreateCampaignAction() {
+  const canCreate = useHasPermission("campaigns:create");
+
+  if (!canCreate) {
+    return (
+      <CapabilityTooltip message={capabilityMessage("campaigns:create")}>
+        <Button type="button" disabled>
+          <Plus className="size-4" aria-hidden />
+          Create Campaign
+        </Button>
+      </CapabilityTooltip>
+    );
+  }
+
+  return (
+    <Button asChild>
+      <Link href="/hr/campaigns/new">
+        <Plus className="size-4" aria-hidden />
+        Create Campaign
+      </Link>
+    </Button>
+  );
+}
+
+function CampaignsWorkstation() {
   const { token } = useAuth();
   const authToken = token ?? "";
 
@@ -71,12 +101,7 @@ export default function CampaignsPage() {
         actions={
           <>
             <TodayChip />
-            <Button asChild>
-              <Link href="/hr/campaigns/new">
-                <Plus className="size-4" aria-hidden />
-                Create Campaign
-              </Link>
-            </Button>
+            <CreateCampaignAction />
           </>
         }
       />
@@ -151,5 +176,17 @@ export default function CampaignsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function CampaignsPage() {
+  return (
+    <RequirePermission
+      anyPermission={["campaigns:create", "payouts:disburse"]}
+      homeHref="/hr"
+      inset
+    >
+      <CampaignsWorkstation />
+    </RequirePermission>
   );
 }
