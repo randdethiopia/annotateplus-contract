@@ -468,3 +468,43 @@ export interface CandidateListResponse {
   page: number;
   limit: number;
 }
+
+export interface BulkIssueRequestBody {
+  candidateIds: string[];
+  templateId?: string;
+}
+
+export interface BulkIssueResponseData {
+  jobId: string;
+  totalRequested: number;
+  status: string;
+}
+
+export type BulkJobStatus = "PROCESSING" | "COMPLETED" | "FAILED";
+
+export interface BulkIssueSucceededItem {
+  candidateId: string;
+  candidateName: string;
+  phone: string;
+  contractId: string;
+  contractNumber: string;
+}
+
+export interface BulkIssueFailedItem {
+  candidateId: string;
+  candidateName: string;
+  phone: string;
+  error: string;
+}
+
+export interface BulkJobDetailDto {
+  jobId: string;
+  status: BulkJobStatus;
+  totalRequested: number;
+  processedCount: number;
+  successCount: number;
+  failedCount: number;
+  succeeded: BulkIssueSucceededItem[];
+  failed: BulkIssueFailedItem[];
+  error?: string;
+}

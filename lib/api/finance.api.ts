@@ -3,6 +3,9 @@ import { DEFAULT_TEMPLATE_ID } from "@/lib/contract-templates";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import { saveBlob } from "@/lib/save-blob";
 import type {
+  BulkIssueRequestBody,
+  BulkIssueResponseData,
+  BulkJobDetailDto,
   BulkRemindParams,
   BulkRemindResult,
   ContractStatus,
@@ -23,6 +26,8 @@ export interface FinanceContractsParams {
   page: number;
   limit: number;
 }
+
+export const BULK_ISSUE_LIMIT = 150;
 
 export interface ExportPipelineParams {
   status?: ContractStatus | "ALL";
@@ -80,6 +85,29 @@ export const financeApi = {
 
   getSummary(token: string): Promise<FinanceSummary> {
     return api<FinanceSummary>("/finance/contracts/summary", { token });
+  },
+
+  bulkIssueContracts(
+    token: string,
+    params: BulkIssueRequestBody
+  ): Promise<BulkIssueResponseData> {
+    const body: BulkIssueRequestBody = {
+      candidateIds: params.candidateIds,
+      templateId: params.templateId || DEFAULT_TEMPLATE_ID,
+    };
+
+    return api<BulkIssueResponseData>("/finance/contracts/bulk-issue", {
+      method: "POST",
+      token,
+      body,
+    });
+  },
+
+  getBulkJobStatus(token: string, jobId: string): Promise<BulkJobDetailDto> {
+    return api<BulkJobDetailDto>(`/finance/contracts/bulk-issue/${jobId}`, {
+      method: "GET",
+      token,
+    });
   },
 
   bulkRemind(token: string, params: BulkRemindParams): Promise<BulkRemindResult> {
