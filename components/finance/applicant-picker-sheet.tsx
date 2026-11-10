@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import type { CandidateItemDto, VulnerabilityStatus } from "@/types/backend";
 
 const ALL_REGIONS = "ALL";
+const UNCONTRACTED_STATUSES = "NEW,SHORTLISTED";
 
 export interface ApplicantPickerSheetProps {
   open: boolean;
@@ -134,18 +135,13 @@ function PickerBody({
 
   const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const { data, isLoading } = useCandidates(token ?? null, {
-    search: debouncedSearch,
+    status: UNCONTRACTED_STATUSES,
+    limit: BULK_ISSUE_LIMIT,
+    search: debouncedSearch || undefined,
     region: region || undefined,
-    limit: 100,
   });
 
-  const applicants = useMemo(
-    () =>
-      (data?.items ?? []).filter(
-        (candidate) => candidate.status === "NEW" || candidate.status === "SHORTLISTED"
-      ),
-    [data?.items]
-  );
+  const applicants = useMemo(() => data?.items ?? [], [data?.items]);
 
   const selectedSet = useMemo(() => new Set(draftIds), [draftIds]);
   const selectedCount = draftIds.length;

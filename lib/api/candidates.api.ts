@@ -8,7 +8,7 @@ import type {
 } from "@/types/backend";
 
 export interface CandidateListParams {
-  status?: string;
+  status?: string | string[];
   search?: string;
   region?: string;
   vulnerabilityStatus?: string;
@@ -20,7 +20,8 @@ export interface CandidateListParams {
 
 function buildCandidatesQuery(params: CandidateListParams = {}): string {
   const query = new URLSearchParams();
-  if (params.status) query.set("status", params.status);
+  const status = Array.isArray(params.status) ? params.status.join(",") : params.status;
+  if (status) query.set("status", status);
   if (params.search?.trim()) query.set("search", params.search.trim());
   if (params.region) query.set("region", params.region);
   if (params.vulnerabilityStatus) query.set("vulnerabilityStatus", params.vulnerabilityStatus);
