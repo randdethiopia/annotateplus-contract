@@ -1,4 +1,5 @@
-import { api } from "./client";
+import { api, apiBlob } from "./client";
+import { saveBlob } from "@/lib/save-blob";
 import type {
   CandidateListResponse,
   CandidateStatus,
@@ -32,6 +33,11 @@ function buildCandidatesQuery(params: CandidateListParams = {}): string {
   return query.toString();
 }
 
+export type CandidateExportParams = Pick<
+  CandidateListParams,
+  "status" | "search" | "region" | "vulnerabilityStatus"
+>;
+
 export const candidatesApi = {
   apply: (dto: PublicCandidateApplyDto) =>
     api<PublicCandidateApplyResponseData>("/public/candidates/apply", {
@@ -53,4 +59,14 @@ export const candidatesApi = {
       token,
       body: { status, notes },
     }),
+
+  async exportCsv(token: string, params: CandidateExportParams = {}): Promise<void> {
+    const query = buildCandidatesQuery(params);
+    const blob = await apiBlob(
+      query ? `/reviewer/candidates/export?${query}` : "/reviewer/candidates/export",
+      token
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    saveBlob(blob, `candidates_export_${today}.csv`);
+  },
 };

@@ -7,7 +7,11 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { candidatesApi, type CandidateListParams } from "@/lib/api/candidates.api";
+import {
+  candidatesApi,
+  type CandidateExportParams,
+  type CandidateListParams,
+} from "@/lib/api/candidates.api";
 import { describeError } from "@/lib/describe-error";
 import type { CandidateStatus } from "@/types/backend";
 
@@ -49,5 +53,11 @@ export function useUpdateCandidateStatus(token: string) {
       console.error("Candidate status update failed", err);
       toast.error(describeError(err, "Could not update candidate status"));
     },
+  });
+}
+
+export function useExportCandidatesCsv(token: string) {
+  return useMutation({
+    mutationFn: (params: CandidateExportParams) => candidatesApi.exportCsv(token, params),
   });
 }
