@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Link2, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, Download, Link2, Loader2, RefreshCw, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PaginationBar } from "@/components/contracts/pagination-bar";
@@ -22,12 +22,18 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useCandidateParams } from "@/lib/hooks/use-candidate-params";
-import { useCandidates, useUpdateCandidateStatus } from "@/lib/hooks/use-candidates";
+import {
+  useCandidates,
+  useExportCandidatesCsv,
+  useUpdateCandidateStatus,
+} from "@/lib/hooks/use-candidates";
 import { useClampPage } from "@/lib/hooks/use-clamp-page";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { describeError } from "@/lib/describe-error";
 import type { CandidateStatus } from "@/types/backend";
 
 const CANDIDATE_NOUN = { singular: "applicant", plural: "applicants" };
+const EXPORT_TOAST_ID = "candidate-export";
 
 function CopyApplyLinkButton() {
   async function copy() {
@@ -89,6 +95,8 @@ export default function HrCandidatesPage() {
   const { mutate: updateStatus, isPending: isUpdating, variables } =
     useUpdateCandidateStatus(token ?? "");
 
+  const { mutate: exportCandidates, isPending: isExporting } = useExportCandidatesCsv(token ?? "");
+
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const hasFilters = !!search || !!status || !!region || !!vulnerabilityStatus;
@@ -120,6 +128,27 @@ export default function HrCandidatesPage() {
     resetFilters();
   }
 
+  function handleExport() {
+    toast.loading("Exporting candidate pool...", { id: EXPORT_TOAST_ID });
+    exportCandidates(
+      {
+        status: status || undefined,
+        search: searchDraft.trim() || undefined,
+        region: region || undefined,
+        vulnerabilityStatus: vulnerabilityStatus || undefined,
+      },
+      {
+        onSuccess: () => toast.success("Export complete!", { id: EXPORT_TOAST_ID }),
+        onError: (err) => {
+          console.error("Candidate export failed", err);
+          toast.error(describeError(err, "Failed to export candidates. Please try again."), {
+            id: EXPORT_TOAST_ID,
+          });
+        },
+      }
+    );
+  }
+
   function handleUpdateStatus(id: string, next: CandidateStatus) {
     updateStatus({ id, status: next });
   }
@@ -140,6 +169,19 @@ export default function HrCandidatesPage() {
             >
               <RefreshCw className={isFetching ? "size-4 animate-spin" : "size-4"} aria-hidden />
               Refresh
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExport}
+              disabled={isExporting || !token}
+            >
+              {isExporting ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Download className="size-4" aria-hidden />
+              )}
+              Export Pool CSV
             </Button>
             <CopyApplyLinkButton />
           </>
