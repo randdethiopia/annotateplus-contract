@@ -41,12 +41,26 @@ export const CAMPAIGN_STATUS_STYLE: Record<CampaignStatus, CampaignStatusStyle> 
     glowClassName: "shadow-[0_0_0_3px] shadow-violet-500/25",
     pulse: true,
   },
+  PARTIALLY_DISBURSED: {
+    label: "Partially Settled",
+    surfaceClassName: "bg-amber-50",
+    textClassName: "text-amber-800",
+    dotClassName: "bg-amber-500",
+    glowClassName: "shadow-[0_0_0_3px] shadow-amber-500/25",
+  },
   DISBURSED: {
     label: "Disbursed",
     surfaceClassName: "bg-emerald-50",
     textClassName: "text-emerald-700",
     dotClassName: "bg-emerald-600",
     glowClassName: "shadow-[0_0_0_3px] shadow-emerald-600/20",
+  },
+  FAILED: {
+    label: "Failed",
+    surfaceClassName: "bg-rose-50",
+    textClassName: "text-rose-700",
+    dotClassName: "bg-rose-500",
+    glowClassName: "shadow-[0_0_0_3px] shadow-rose-500/25",
   },
   CANCELLED: {
     label: "Cancelled",
@@ -62,6 +76,7 @@ export const CAMPAIGN_STATUS_ORDER: CampaignStatus[] = [
   "PENDING_APPROVAL",
   "APPROVED_BY_MANAGER",
   "DISBURSING",
+  "PARTIALLY_DISBURSED",
   "DISBURSED",
   "CANCELLED",
 ];

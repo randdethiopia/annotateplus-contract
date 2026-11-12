@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import { Field } from "@/components/system/field";
-import { SURFACE_CARD } from "@/components/system/surface";
+import { PanelSection } from "@/components/system/panel-section";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -13,9 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useApprovers } from "@/lib/hooks/use-campaigns";
 import { describeError } from "@/lib/describe-error";
-import { cn } from "@/lib/utils";
 import type { CampaignApproverDto } from "@/types/backend";
-import { SectionHeading } from "./section-heading";
 
 export interface ApproverDraft {
   approverId: string;
@@ -24,7 +22,7 @@ export interface ApproverDraft {
 function ApproverOption({ approver }: { approver: CampaignApproverDto }) {
   return (
     <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-      <span className="text-foreground truncate text-sm font-medium">{approver.fullName}</span>
+      <span className="text-foreground truncate text-[15px] font-medium">{approver.fullName}</span>
       <span className="text-muted-foreground truncate text-xs">
         {approver.title}
         <span className="mx-1.5 text-slate-300">|</span>
@@ -44,18 +42,16 @@ export function ApproverSection({
   onChange: (patch: Partial<ApproverDraft>) => void;
 }) {
   const { data, isPending, isError, error, refetch } = useApprovers(token || null);
-  const approvers = (data ?? []).filter((approver) => approver.isActive);
+  const approvers = (data ?? []).filter((approver) => approver.isActive !== false);
   const selected = approvers.find((approver) => approver._id === value.approverId);
 
   return (
-    <section aria-labelledby="approver-heading" className={cn(SURFACE_CARD, "p-6")}>
-      <SectionHeading
-        id="approver-heading"
-        step={3}
-        title="Designated Approver (SMS OTP Verification)"
-      />
-
-      <div className="mt-6 max-w-xl">
+    <PanelSection
+      id="approver-heading"
+      label="Designated Approver"
+      description="The executive whose SMS OTP authorizes this disbursement."
+    >
+      <div className="max-w-xl">
         <Field
           id="approver-id"
           label="Executive Approver"
@@ -63,7 +59,7 @@ export function ApproverSection({
           hint="Only registered executive approvers can authorize a disbursement."
         >
           {isError ? (
-            <div className="flex items-start gap-3 rounded-xl border border-slate-200/80 bg-slate-50 p-4">
+            <div className="flex items-start gap-3 border-l-2 border-slate-300 py-1 pl-4">
               <AlertTriangle className="text-destructive mt-0.5 size-4 shrink-0" aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-slate-700">
@@ -88,7 +84,7 @@ export function ApproverSection({
             >
               <SelectTrigger
                 id="approver-id"
-                className="h-auto w-full items-start justify-between gap-2 py-2.5 text-left whitespace-normal data-[size=default]:h-auto *:data-[slot=select-value]:line-clamp-none *:data-[slot=select-value]:w-full *:data-[slot=select-value]:items-start"
+                className="h-auto w-full items-start justify-between gap-2 rounded-none border-0 border-b border-slate-300 bg-transparent px-0 py-3 text-left whitespace-normal focus-visible:border-slate-900 focus-visible:ring-0 data-[size=default]:h-auto *:data-[slot=select-value]:line-clamp-none *:data-[slot=select-value]:w-full *:data-[slot=select-value]:items-start"
               >
                 {isPending ? (
                   <span className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -123,13 +119,13 @@ export function ApproverSection({
         )}
       </div>
 
-      <div className="border-action/20 bg-action-soft/60 mt-6 flex items-start gap-3 rounded-xl border p-4">
-        <ShieldCheck className="text-action mt-0.5 size-4 shrink-0" aria-hidden />
-        <p className="text-sm text-pretty text-slate-700">
+      <div className="mt-8 flex max-w-xl items-start gap-3 border-l border-slate-300 py-1 pl-4">
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />
+        <p className="text-[15px] leading-relaxed text-pretty text-slate-500">
           The designated manager will receive an AfroMessage SMS with a secure capability link and a
           25-minute One-Time Password (OTP) to review and authorize this disbursement.
         </p>
       </div>
-    </section>
+    </PanelSection>
   );
 }

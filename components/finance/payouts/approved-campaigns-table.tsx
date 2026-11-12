@@ -20,7 +20,7 @@ import type { CampaignListItemDto, CampaignQueryFilters } from "@/types/backend"
 
 /** Shared with the page so the treasury banner reads the same cached query. */
 export const APPROVED_QUEUE_FILTERS: CampaignQueryFilters = {
-  status: "APPROVED_BY_MANAGER",
+  status: "APPROVED_BY_MANAGER,PARTIALLY_DISBURSED",
   page: 1,
   limit: 100,
 };
@@ -76,6 +76,22 @@ function ProjectPill({ code }: { code: string }) {
   );
 }
 
+function SettlementStatus({ item }: { item: CampaignListItemDto }) {
+  const settled = item.disbursedWorkerCount;
+  const showRatio = item.status === "PARTIALLY_DISBURSED" && settled !== undefined;
+
+  return (
+    <div className="min-w-0">
+      <CampaignStatusBadge status={item.status} pulse />
+      {showRatio && (
+        <p className="mt-1.5 font-mono text-[11px] font-semibold whitespace-nowrap text-amber-800 tabular-nums">
+          {settled.toLocaleString()} / {item.totalWorkers.toLocaleString()} Paid
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Approver({ item }: { item: CampaignListItemDto }) {
   if (!item.approverName) return <span className="text-sm text-slate-400">—</span>;
   return (
@@ -107,12 +123,13 @@ function ReleaseFundsButton({
   onDisburse: (campaign: CampaignListItemDto) => void;
 }) {
   const canDisburse = useHasPermission("payouts:disburse");
+  const label = item.status === "PARTIALLY_DISBURSED" ? "Release Remaining" : "Release Funds";
 
   if (!canDisburse) {
     return (
       <CapabilityTooltip message={capabilityMessage("payouts:disburse")}>
         <Button type="button" size="sm" className={RELEASE_BUTTON_CLASS} disabled>
-          Release Funds
+          {label}
           <ArrowRight className="size-3.5" aria-hidden />
         </Button>
       </CapabilityTooltip>
@@ -127,7 +144,7 @@ function ReleaseFundsButton({
       disabled={isBusy}
       onClick={() => onDisburse(item)}
     >
-      Release Funds
+      {label}
       <ArrowRight className="size-3.5" aria-hidden />
     </Button>
   );
@@ -163,12 +180,12 @@ function ApprovedCampaignsRows({
 }) {
   return (
     <>
-      <ul className="bg-card divide-y divide-slate-100 overflow-hidden rounded-2xl shadow-xs xl:hidden">
+      <ul className="divide-y divide-slate-100 border-y border-slate-200 bg-white xl:hidden">
         {items.map((item) => (
           <li key={item._id} className="px-5 py-4">
             <div className="flex items-start justify-between gap-3">
               <CampaignIdentity item={item} />
-              <CampaignStatusBadge status={item.status} pulse />
+              <SettlementStatus item={item} />
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -194,7 +211,7 @@ function ApprovedCampaignsRows({
         ))}
       </ul>
 
-      <div className="bg-card hidden overflow-x-auto rounded-2xl shadow-xs xl:block">
+      <div className="hidden overflow-x-auto border-y border-slate-200 bg-white xl:block">
         <table className="w-full table-auto border-collapse text-sm">
           <thead>
             <tr className="border-border/80 border-b bg-slate-50/70">
@@ -237,7 +254,7 @@ function ApprovedCampaignsRows({
                   {formatEtb(item.totalAmount)}
                 </td>
                 <td className={cn(COL.status, "py-4 align-middle")}>
-                  <CampaignStatusBadge status={item.status} pulse />
+                  <SettlementStatus item={item} />
                 </td>
                 <td className={cn(COL.actions, "py-4")}>
                   <RowActions
@@ -283,7 +300,7 @@ export function ApprovedCampaignsTable({
       isEmpty={items.length === 0}
       skeleton={<CampaignsTableSkeleton />}
       error={
-        <div className="rounded-2xl bg-white px-6 py-14 text-center">
+        <div className="border-y border-slate-200 bg-white px-6 py-14 text-center">
           <AlertTriangle className="text-destructive mx-auto mb-3 size-5" aria-hidden />
           <p className="text-foreground text-sm font-semibold">Could not load approved campaigns</p>
           <p className="text-muted-foreground mx-auto mt-1.5 max-w-sm text-sm text-pretty">
@@ -296,13 +313,14 @@ export function ApprovedCampaignsTable({
       }
       empty={
         <EmptyState
+          flat
           icon={<Inbox className="size-5" />}
           title="Nothing awaiting disbursement"
           description="No campaigns currently pending finance disbursement. Approved campaigns from managers will appear here."
         />
       }
       notice={
-        <div className="mb-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="mb-3 border-l-2 border-amber-400 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
           Live refresh failed — showing the last known approved campaigns.
         </div>
       }

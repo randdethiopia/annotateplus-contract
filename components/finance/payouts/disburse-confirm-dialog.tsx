@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useCampaign } from "@/lib/hooks/use-campaigns";
-import { formatEtb } from "@/lib/money";
+import { formatEtb, sumEtb } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { CampaignListItemDto } from "@/types/backend";
 
@@ -31,7 +31,7 @@ function RouteNode({
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2.5">
       <span
-        className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700"
+        className="flex size-8 shrink-0 items-center justify-center border border-slate-200 bg-white text-slate-700"
         aria-hidden
       >
         {icon}
@@ -74,6 +74,7 @@ function BreakdownRow({
 export function DisburseConfirmDialog({
   token,
   campaign,
+  workerIds,
   treasuryBalance,
   open,
   onOpenChange,
@@ -82,6 +83,7 @@ export function DisburseConfirmDialog({
 }: {
   token: string;
   campaign: CampaignListItemDto | null;
+  workerIds?: string[];
   treasuryBalance: number | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -90,21 +92,32 @@ export function DisburseConfirmDialog({
 }) {
   const { data: detail } = useCampaign(token, open && campaign ? campaign._id : null);
 
+  const targetWorkers = useMemo(() => {
+    const payable = (detail?.workers ?? []).filter((worker) => worker.status === "APPROVED");
+    if (!workerIds || workerIds.length === 0) return payable;
+    const wanted = new Set(workerIds);
+    return payable.filter((worker) => wanted.has(worker._id));
+  }, [detail, workerIds]);
+
+  const hasDetail = detail !== undefined;
+  const isSubset = (workerIds?.length ?? 0) > 0;
+
+  const targetAmount = hasDetail
+    ? sumEtb(targetWorkers.map((worker) => worker.netPayableEtb))
+    : campaign?.totalAmount;
+  const targetCount = hasDetail ? targetWorkers.length : (campaign?.totalWorkers ?? 0);
+
   const bankRoute = useMemo(() => {
     const banks = Array.from(
-      new Set(
-        (detail?.workers ?? [])
-          .filter((worker) => worker.status !== "SKIPPED" && worker.bankName)
-          .map((worker) => worker.bankName)
-      )
+      new Set(targetWorkers.filter((worker) => worker.bankName).map((worker) => worker.bankName))
     );
     if (banks.length === 0) return "bank accounts";
     if (banks.length > MAX_LISTED_BANKS) return `${banks.length} banks`;
     return `${banks.join(" / ")} accounts`;
-  }, [detail]);
+  }, [targetWorkers]);
 
   const isShort =
-    campaign !== null && treasuryBalance !== undefined && treasuryBalance < campaign.totalAmount;
+    targetAmount !== undefined && treasuryBalance !== undefined && treasuryBalance < targetAmount;
 
   return (
     <Dialog open={open} onOpenChange={(next) => !isDisbursing && onOpenChange(next)}>
@@ -125,7 +138,8 @@ export function DisburseConfirmDialog({
             Authorize Payroll Disbursement
           </DialogTitle>
           <DialogDescription className="mt-1.5 text-sm text-slate-500">
-            You are about to release company treasury funds for campaign:{" "}
+            You are about to release{" "}
+            {isSubset ? "funds for a selected subset of" : "company treasury funds for"} campaign:{" "}
             <span className="font-mono font-semibold text-slate-900">
               {campaign?.campaignNumber ?? "—"}
             </span>
@@ -134,7 +148,7 @@ export function DisburseConfirmDialog({
 
         {campaign && (
           <div className="space-y-3 overflow-y-auto p-6">
-            <section aria-label="Transfer routing" className="space-y-2 rounded-xl border border-slate-200/80 bg-slate-50 p-4 text-xs">
+            <section aria-label="Transfer routing" className="space-y-2 border-y border-slate-200 bg-slate-50 px-4 py-4 text-xs">
               <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
                 Transfer Routing
               </p>
@@ -147,17 +161,21 @@ export function DisburseConfirmDialog({
                 <ArrowRight className="size-4 shrink-0 text-slate-400" aria-hidden />
                 <RouteNode
                   icon={<Users className="size-4" />}
-                  title={`${campaign.totalWorkers.toLocaleString()} ${campaign.totalWorkers === 1 ? "Annotator" : "Annotators"}`}
+                  title={`${targetCount.toLocaleString()} ${targetCount === 1 ? "Annotator" : "Annotators"}`}
                   caption={`via ${bankRoute}`}
                 />
               </div>
             </section>
 
             <section aria-label="Financial breakdown">
-              <dl className="border-border divide-border divide-y rounded-xl border bg-white">
+              <dl className="divide-border border-border divide-y border-y bg-white">
                 <BreakdownRow
-                  label="Required Campaign Budget"
-                  value={formatEtb(campaign.totalAmount)}
+                  label={isSubset ? "Selected Workers" : "Workers in This Release"}
+                  value={targetCount.toLocaleString()}
+                />
+                <BreakdownRow
+                  label={isSubset ? "Amount for Selection" : "Required Campaign Budget"}
+                  value={formatEtb(targetAmount)}
                   emphasis
                 />
                 <BreakdownRow
@@ -171,13 +189,16 @@ export function DisburseConfirmDialog({
             {isShort && (
               <div
                 role="alert"
-                className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-800"
+                className="flex items-start gap-2.5 border-l-2 border-amber-400 bg-amber-50/70 p-3.5 text-xs text-amber-800"
               >
                 <AlertTriangle className="mt-px size-4 shrink-0 text-amber-600" aria-hidden />
                 <p className="leading-relaxed">
-                  Insufficient Chapa treasury balance. Disbursing this batch will be blocked by the
-                  pre-flight balance shield. Please top up funds on Chapa dashboard before
-                  executing.
+                  Insufficient Chapa treasury balance for the{" "}
+                  <span className="font-mono font-semibold tabular-nums">
+                    {formatEtb(targetAmount)}
+                  </span>{" "}
+                  being released. Disbursing will be blocked by the pre-flight balance shield.
+                  Please top up funds on Chapa dashboard before executing.
                 </p>
               </div>
             )}
@@ -198,7 +219,7 @@ export function DisburseConfirmDialog({
             type="button"
             className="h-auto rounded-xl px-5 py-2.5 font-medium shadow-sm"
             onClick={onConfirm}
-            disabled={isDisbursing || !campaign}
+            disabled={isDisbursing || !campaign || isShort || (hasDetail && targetCount === 0)}
           >
             {isDisbursing && (
               <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden />

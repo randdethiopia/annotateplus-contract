@@ -497,7 +497,9 @@ export type CampaignStatus =
   | "PENDING_APPROVAL"
   | "APPROVED_BY_MANAGER"
   | "DISBURSING"
+  | "PARTIALLY_DISBURSED"
   | "DISBURSED"
+  | "FAILED"
   | "CANCELLED";
 
 export type CampaignCompensationModel = "PER_TASK" | "FIXED" | "HYBRID_TIERED";
@@ -511,6 +513,12 @@ export interface CampaignDefaultsDto {
   model: CampaignCompensationModel;
   defaultRatePerTaskEtb: number;
   taskTiers?: CampaignTaskTierDto[];
+}
+
+export interface CampaignDisburserDto {
+  _id: string;
+  fullName: string;
+  email: string;
 }
 
 export interface CampaignListItemDto {
@@ -529,6 +537,9 @@ export interface CampaignListItemDto {
   payoutBatchNumber?: string;
   payableWorkerCount?: number;
   skippedWorkerCount?: number;
+  disbursedWorkerCount?: number;
+  disbursedBy?: CampaignDisburserDto | null;
+  disbursedAt?: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -568,7 +579,13 @@ export interface CampaignSummaryDto {
   pendingApprovals: number;
 }
 
-export type CampaignWorkerStatus = "STAGED" | "APPROVED" | "SKIPPED" | "DISBURSED";
+export type CampaignWorkerStatus =
+  | "STAGED"
+  | "APPROVED"
+  | "DISPATCHING"
+  | "DISBURSED"
+  | "SKIPPED"
+  | "FAILED";
 
 export type CampaignSkipReason = "BELOW_MINIMUM" | "CONTRACT_NOT_PAYABLE" | "UNSUPPORTED_BANK";
 
@@ -597,6 +614,10 @@ export interface CampaignWorkerItemDto {
 export interface CampaignDetailsDto {
   campaign: CampaignListItemDto;
   workers: CampaignWorkerItemDto[];
+}
+
+export interface DisburseCampaignPayload {
+  workerIds?: string[];
 }
 
 /** 202: DISBURSED means handed to the payout engine, not settled at the bank. */
@@ -662,7 +683,7 @@ export interface CampaignApproverDto {
   fullName: string;
   title: string;
   phoneMasked: string;
-  isActive: boolean;
+  isActive?: boolean;
 }
 
 export interface SubmitCampaignApprovalRequestBody {

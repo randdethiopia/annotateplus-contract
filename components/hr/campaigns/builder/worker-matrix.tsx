@@ -1,8 +1,16 @@
 "use client";
 
 import { memo, useMemo, useState, type ReactNode } from "react";
-import { AlertTriangle, Search, SearchX, Users, X } from "lucide-react";
-import { SURFACE_CARD } from "@/components/system/surface";
+import {
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  SearchX,
+  Users,
+  X,
+} from "lucide-react";
+import { PanelSection } from "@/components/system/panel-section";
 import { QueueShell } from "@/components/system/queue-shell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,13 +22,15 @@ import {
   sanitizeCountInput,
   type WorkerRowDraft,
 } from "@/lib/campaign-math";
+import { normalizePhoneToLocal } from "@/lib/phone";
 import { describeError } from "@/lib/describe-error";
 import { formatEtb } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { CampaignCompensationModel, ContractListItemDto } from "@/types/backend";
-import { SectionHeading } from "./section-heading";
 
 export const MATRIX_REGION_ID = "campaign-worker-matrix";
+
+export const WORKERS_PER_PAGE = 25;
 
 type MatrixView = "ALL" | "ENROLLED";
 
@@ -338,6 +348,7 @@ export function WorkerMatrix({
   defaultRate,
   lockedIds,
   enrolledCount,
+  totalBudget,
   onRowChange,
   onSetEnrolled,
 }: {
@@ -354,20 +365,24 @@ export function WorkerMatrix({
   defaultRate: string;
   lockedIds: Record<string, string>;
   enrolledCount: number;
+  totalBudget: number;
   onRowChange: RowChangeHandler;
   onSetEnrolled: (contractIds: string[], enrolled: boolean) => void;
 }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<MatrixView>("ALL");
+  const [paging, setPaging] = useState<{ key: string; page: number }>({ key: "", page: 1 });
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const digits = query.replace(/\D/g, "");
     return workers.filter((worker) => {
       if (view === "ENROLLED" && !rows[worker.contractId]?.enrolled) return false;
       if (!query) return true;
       return (
         workerName(worker).toLowerCase().includes(query) ||
         worker.contractNumber.toLowerCase().includes(query) ||
+        (digits.length > 0 && normalizePhoneToLocal(worker.phone ?? "").includes(digits)) ||
         (worker.candidateNameAmharic ?? "").includes(search.trim())
       );
     });
@@ -393,6 +408,17 @@ export function WorkerMatrix({
     }
   }
 
+  const pageKey = `${view}|${search.trim().toLowerCase()}`;
+  const totalPages = Math.max(1, Math.ceil(visible.length / WORKERS_PER_PAGE));
+  const requestedPage = paging.key === pageKey ? paging.page : 1;
+  const page = Math.min(Math.max(1, requestedPage), totalPages);
+  const pageStart = (page - 1) * WORKERS_PER_PAGE;
+  const paged = visible.slice(pageStart, pageStart + WORKERS_PER_PAGE);
+
+  function goToPage(next: number) {
+    setPaging({ key: pageKey, page: Math.min(Math.max(1, next), totalPages) });
+  }
+
   const tabs: { value: MatrixView; label: string; count: number }[] = [
     { value: "ALL", label: "All Signed", count: totalSigned },
     { value: "ENROLLED", label: "Enrolled in Campaign", count: enrolledCount },
@@ -411,20 +437,18 @@ export function WorkerMatrix({
   });
 
   return (
-    <section aria-labelledby="worker-matrix-heading" className={SURFACE_CARD}>
-      <div className="space-y-5 p-6">
-        <SectionHeading
-          id="worker-matrix-heading"
-          step={2}
-          title="Worker Enrollment & Compensation"
-          description="Select signed annotators and set what each one is owed for this run."
-        />
-
+    <PanelSection
+      id="worker-matrix-heading"
+      label="Worker Enrollment"
+      description="Select signed annotators and set what each one is owed for this run."
+      layout="stacked"
+    >
+      <div className="bg-background z-20 space-y-5 pb-5 sm:sticky sm:top-[8.5rem]">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative w-full sm:w-96">
               <Search
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400"
+                className="pointer-events-none absolute top-1/2 left-0 size-4 -translate-y-1/2 text-slate-400"
                 aria-hidden
               />
               <input
@@ -437,12 +461,12 @@ export function WorkerMatrix({
                     setSearch("");
                   }
                 }}
-                placeholder="Filter signed annotators by name or contract №…"
-                aria-label="Filter signed annotators"
+                placeholder="Search worker by name, phone, or contract number…"
+                aria-label="Search signed annotators"
                 aria-controls={MATRIX_REGION_ID}
                 autoComplete="off"
                 spellCheck={false}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-9 pl-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-900/10 focus:outline-none"
+                className="h-11 w-full border-0 border-b border-slate-300 bg-transparent pr-9 pl-7 text-[15px] text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-0 focus:outline-none"
               />
               {search && (
                 <button
@@ -459,7 +483,7 @@ export function WorkerMatrix({
             <div
               role="group"
               aria-label="Show annotators"
-              className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200/60 bg-slate-100/80 p-1"
+              className="flex flex-wrap items-center gap-6"
             >
               {tabs.map((tab) => {
                 const isActive = view === tab.value;
@@ -471,10 +495,10 @@ export function WorkerMatrix({
                     aria-controls={MATRIX_REGION_ID}
                     onClick={() => setView(tab.value)}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-slate-900/10 focus-visible:outline-none",
+                      "inline-flex items-center gap-1.5 border-b-2 py-1 text-[15px] whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-slate-900/10 focus-visible:outline-none",
                       isActive
-                        ? "bg-white font-semibold text-slate-900 shadow-xs"
-                        : "font-medium text-slate-600 hover:text-slate-900"
+                        ? "border-slate-900 font-semibold text-slate-900"
+                        : "border-transparent font-normal text-slate-500 hover:text-slate-900"
                     )}
                   >
                     {tab.label}
@@ -487,15 +511,31 @@ export function WorkerMatrix({
             </div>
           </div>
 
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700 select-none">
-            <Checkbox
-              checked={selectAllState}
-              disabled={visible.length === 0}
-              onCheckedChange={toggleAllVisible}
-              aria-controls={MATRIX_REGION_ID}
-            />
-            {hasQuery || view === "ENROLLED" ? "Select all shown" : "Select all"}
-          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex cursor-pointer items-center gap-2.5 text-[15px] font-medium text-slate-700 select-none">
+              <Checkbox
+                checked={selectAllState}
+                disabled={visible.length === 0}
+                onCheckedChange={toggleAllVisible}
+                aria-controls={MATRIX_REGION_ID}
+              />
+              Select All Filtered (<span className="tabular">{visible.length}</span>)
+            </label>
+
+            <span
+              className="inline-flex flex-wrap items-center gap-1.5 text-[15px] font-medium whitespace-nowrap text-slate-500"
+              aria-live="polite"
+            >
+              <span className="tabular">{enrolledCount.toLocaleString()}</span>
+              {enrolledCount === 1 ? "Worker" : "Workers"} Enrolled
+              <span className="text-slate-300" aria-hidden>
+                ·
+              </span>
+              <span className="font-mono font-semibold tabular">
+                Total: {formatEtb(totalBudget)}
+              </span>
+            </span>
+          </div>
         </div>
 
         {totalSigned > workers.length && (
@@ -508,6 +548,7 @@ export function WorkerMatrix({
 
       <QueueShell
         id={MATRIX_REGION_ID}
+        className="border-y border-slate-200 bg-white"
         isPending={isPending}
         isFetching={isFetching}
         isError={isError}
@@ -558,13 +599,13 @@ export function WorkerMatrix({
           )
         }
       >
-        <ul className="border-t border-slate-100 lg:hidden">
-          {visible.map((worker) => (
+        <ul className="divide-y divide-slate-100 lg:hidden">
+          {paged.map((worker) => (
             <MatrixCard key={worker.contractId} {...rowProps(worker)} />
           ))}
         </ul>
 
-        <div className="hidden overflow-x-auto border-t border-slate-200 lg:block">
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[1100px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/60">
@@ -598,13 +639,52 @@ export function WorkerMatrix({
               </tr>
             </thead>
             <tbody>
-              {visible.map((worker) => (
+              {paged.map((worker) => (
                 <MatrixRow key={worker.contractId} {...rowProps(worker)} />
               ))}
             </tbody>
           </table>
         </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-3">
+          <p className="text-xs text-slate-500">
+            Showing{" "}
+            <span className="tabular">
+              {visible.length === 0 ? 0 : pageStart + 1}–{pageStart + paged.length}
+            </span>{" "}
+            of <span className="tabular">{visible.length}</span>
+          </p>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => goToPage(page - 1)}
+              aria-controls={MATRIX_REGION_ID}
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+              Prev
+            </Button>
+            <p className="text-xs font-medium whitespace-nowrap text-slate-600">
+              Page <span className="tabular">{page}</span> of{" "}
+              <span className="tabular">{totalPages}</span>
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => goToPage(page + 1)}
+              aria-controls={MATRIX_REGION_ID}
+            >
+              Next
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          </div>
+        </div>
       </QueueShell>
-    </section>
+    </PanelSection>
   );
 }

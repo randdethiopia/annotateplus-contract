@@ -19,7 +19,9 @@ const STATUS_TABLE: Record<CampaignStatusFilter, true> = {
   PENDING_APPROVAL: true,
   APPROVED_BY_MANAGER: true,
   DISBURSING: true,
+  PARTIALLY_DISBURSED: true,
   DISBURSED: true,
+  FAILED: true,
   CANCELLED: true,
 };
 

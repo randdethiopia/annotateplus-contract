@@ -181,11 +181,7 @@ function CampaignsWorkstation() {
 
 export default function CampaignsPage() {
   return (
-    <RequirePermission
-      anyPermission={["campaigns:create", "payouts:disburse"]}
-      homeHref="/hr"
-      inset
-    >
+    <RequirePermission permission="campaigns:create" homeHref="/hr" inset>
       <CampaignsWorkstation />
     </RequirePermission>
   );

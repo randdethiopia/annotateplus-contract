@@ -5,3 +5,5 @@
  */
 export const SURFACE_CARD =
   "rounded-xl border border-slate-200/80 bg-white shadow-xs overflow-hidden";
+
+export const SURFACE_PANEL = "border-y border-slate-200 bg-white";

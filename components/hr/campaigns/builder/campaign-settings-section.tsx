@@ -2,13 +2,12 @@
 
 import { Lock } from "lucide-react";
 import { Field } from "@/components/system/field";
-import { SURFACE_CARD } from "@/components/system/surface";
+import { PanelSection } from "@/components/system/panel-section";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { sanitizeAmountInput } from "@/lib/campaign-math";
 import { cn } from "@/lib/utils";
 import type { CampaignCompensationModel } from "@/types/backend";
-import { SectionHeading } from "./section-heading";
 
 export interface CampaignSettingsDraft {
   title: string;
@@ -17,6 +16,9 @@ export interface CampaignSettingsDraft {
   model: CampaignCompensationModel;
   defaultRate: string;
 }
+
+const FLAT_FIELD =
+  "h-11 rounded-none border-0 border-b border-slate-300 bg-transparent px-0 focus-visible:border-slate-900 focus-visible:bg-transparent focus-visible:shadow-none focus-visible:ring-0";
 
 const MODELS: { value: CampaignCompensationModel; label: string; hint: string }[] = [
   {
@@ -49,7 +51,7 @@ function ModelPicker({
     <div
       role="radiogroup"
       aria-labelledby="campaign-model-label"
-      className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200/60 bg-slate-100/80 p-1"
+      className="flex flex-wrap items-center gap-6"
     >
       {MODELS.map((model) => {
         const checked = model.value === value;
@@ -57,10 +59,10 @@ function ModelPicker({
           <label
             key={model.value}
             className={cn(
-              "inline-flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm whitespace-nowrap transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-slate-900/10",
+              "inline-flex cursor-pointer items-center gap-2 text-[15px] whitespace-nowrap transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-slate-900/10",
               checked
-                ? "bg-white font-semibold text-slate-900 shadow-xs"
-                : "font-medium text-slate-600 hover:text-slate-900"
+                ? "font-semibold text-slate-900"
+                : "font-normal text-slate-500 hover:text-slate-900"
             )}
           >
             <input
@@ -102,22 +104,20 @@ export function CampaignSettingsSection({
   const rateLabel = value.model === "FIXED" ? "Default Fixed Fee" : "Default Rate Per Task";
 
   return (
-    <section aria-labelledby="campaign-settings-heading" className={cn(SURFACE_CARD, "p-6")}>
-      <SectionHeading
-        id="campaign-settings-heading"
-        step={1}
-        title="Project & Compensation Settings"
-        aside={
-          locked ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
-              <Lock className="size-3.5" aria-hidden />
-              Saved as draft
-            </span>
-          ) : undefined
-        }
-      />
-
-      <fieldset disabled={locked} className="mt-6 grid gap-x-6 gap-y-5 md:grid-cols-2">
+    <PanelSection
+      id="campaign-settings-heading"
+      label="Project & Compensation"
+      description="The rules every enrolled annotator inherits for this run."
+      aside={
+        locked ? (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
+            <Lock className="size-3.5" aria-hidden />
+            Saved as draft
+          </span>
+        ) : undefined
+      }
+    >
+      <fieldset disabled={locked} className="grid gap-x-10 gap-y-8 md:grid-cols-2">
         <Field id="campaign-title" label="Campaign Title" required>
           <Input
             id="campaign-title"
@@ -125,6 +125,7 @@ export function CampaignSettingsSection({
             onChange={(e) => onChange({ title: e.target.value })}
             placeholder="November Audio & Speech Annotation"
             autoComplete="off"
+            className={FLAT_FIELD}
           />
         </Field>
 
@@ -136,7 +137,7 @@ export function CampaignSettingsSection({
             placeholder="AUDIO-ETH-02"
             autoComplete="off"
             spellCheck={false}
-            className="font-mono"
+            className={cn(FLAT_FIELD, "font-mono")}
           />
         </Field>
 
@@ -165,10 +166,10 @@ export function CampaignSettingsSection({
               }}
               placeholder="100.00"
               autoComplete="off"
-              className="pr-14 font-mono tabular"
+              className={cn(FLAT_FIELD, "pr-14 font-mono tabular")}
             />
             <span
-              className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 font-mono text-xs font-medium text-slate-500"
+              className="pointer-events-none absolute top-1/2 right-0 -translate-y-1/2 font-mono text-xs font-medium text-slate-400"
               aria-hidden
             >
               ETB
@@ -183,9 +184,10 @@ export function CampaignSettingsSection({
             onChange={(e) => onChange({ description: e.target.value })}
             placeholder="Scope, deliverables and quality bar for this run."
             rows={3}
+            className="resize-none rounded-none border-0 border-b border-slate-300 bg-transparent px-0 focus-visible:border-slate-900 focus-visible:bg-transparent focus-visible:shadow-none focus-visible:ring-0"
           />
         </Field>
       </fieldset>
-    </section>
+    </PanelSection>
   );
 }

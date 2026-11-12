@@ -62,7 +62,7 @@ export function TreasuryBalanceBanner({
   return (
     <section
       aria-label="Chapa treasury balance"
-      className="bg-card rounded-2xl p-6 shadow-xs"
+      className="border-y border-slate-200 bg-white px-6 py-6"
     >
       <div className="flex min-w-0 flex-wrap items-center gap-2.5">
         <span

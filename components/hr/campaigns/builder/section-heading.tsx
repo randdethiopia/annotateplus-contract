@@ -8,7 +8,7 @@ export function SectionHeading({
   aside,
 }: {
   id: string;
-  step: number;
+  step?: number;
   title: string;
   description?: string;
   aside?: ReactNode;
@@ -20,7 +20,7 @@ export function SectionHeading({
           id={id}
           className="text-[11px] font-semibold tracking-[0.1em] text-slate-500 uppercase"
         >
-          {step}. {title}
+          {step === undefined ? title : `${step}. ${title}`}
         </h2>
         {description && <p className="text-sm text-slate-500">{description}</p>}
       </div>

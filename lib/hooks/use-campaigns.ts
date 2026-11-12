@@ -62,19 +62,38 @@ function isInsufficientBalance(err: ApiError): boolean {
   return err.details?.reason === "INSUFFICIENT_BALANCE";
 }
 
+export interface DisburseCampaignVariables {
+  campaignId: string;
+  workerIds?: string[];
+}
+
 export function useDisburseCampaign(token: string) {
   const queryClient = useQueryClient();
   return useMutation({
     retry: 0,
-    mutationFn: (campaignId: string) => campaignsApi.disburseCampaign(campaignId, token),
+    mutationFn: ({ campaignId, workerIds }: DisburseCampaignVariables) =>
+      campaignsApi.disburseCampaign(
+        campaignId,
+        token,
+        workerIds && workerIds.length > 0 ? { workerIds } : undefined
+      ),
     onSuccess: (result) => {
       for (const key of ["campaigns", "campaign", "campaign-summary", "finance-treasury", "payout-batch"]) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
       if (result.alreadyDisbursed) {
         toast.info(`Campaign ${result.campaignNumber} was already disbursed`);
+        return;
+      }
+      const dispatched = `${result.payableWorkerCount.toLocaleString()} ${
+        result.payableWorkerCount === 1 ? "worker" : "workers"
+      }`;
+      if (result.status === "PARTIALLY_DISBURSED") {
+        toast.success(`Dispatched ${dispatched} to Chapa`, {
+          description: "The rest of this campaign is still awaiting disbursement.",
+        });
       } else {
-        toast.success("Disbursement dispatched to Chapa successfully");
+        toast.success(`Disbursement dispatched to Chapa for ${dispatched}`);
       }
     },
     onError: (err) => {

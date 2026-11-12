@@ -49,6 +49,45 @@ export function useReviewerContracts(token: string, params: ReviewerContractsPar
   });
 }
 
+const ALL_SIGNED_PAGE_SIZE = 100;
+const ALL_SIGNED_CEILING = 5_000;
+
+export function useAllSignedContracts(token: string) {
+  return useQuery({
+    queryKey: ["reviewer-contracts", token, "all-signed"],
+    queryFn: async (): Promise<Paginated<ContractListItemDto>> => {
+      const first = await reviewerApi.getContracts(token, {
+        status: "SIGNED",
+        page: 1,
+        limit: ALL_SIGNED_PAGE_SIZE,
+      });
+
+      const pageSize = first.items.length || ALL_SIGNED_PAGE_SIZE;
+      const wanted = Math.min(first.total, ALL_SIGNED_CEILING);
+      const pages = pageSize > 0 ? Math.ceil(wanted / pageSize) : 1;
+      const items = [...first.items];
+
+      if (pages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: pages - 1 }, (_, index) =>
+            reviewerApi.getContracts(token, {
+              status: "SIGNED",
+              page: index + 2,
+              limit: pageSize,
+            })
+          )
+        );
+        for (const page of rest) items.push(...page.items);
+      }
+
+      return { ...first, items, limit: items.length, totalPages: 1 };
+    },
+    enabled: !!token,
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
 /**
  * Per-status totals for the whole filtered set, not just the rows on screen.
  * Same shape as `useReviewerKpis` below — a `limit: 1` request read for its

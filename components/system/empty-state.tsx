@@ -1,19 +1,27 @@
 import type { ReactNode } from "react";
 import { SearchX } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function EmptyState({
   icon,
   title,
   description,
   action,
+  flat = false,
 }: {
   icon?: ReactNode;
   title: string;
   description?: string;
   action?: ReactNode;
+  flat?: boolean;
 }) {
   return (
-    <div className="bg-card rounded-2xl px-6 py-14 text-center shadow-xs">
+    <div
+      className={cn(
+        "px-6 py-14 text-center",
+        flat ? "border-y border-slate-200 bg-white" : "bg-card rounded-2xl shadow-xs"
+      )}
+    >
       <span
         className="bg-surface-subtle text-muted-foreground mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl"
         aria-hidden

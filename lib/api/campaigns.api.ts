@@ -13,6 +13,7 @@ import type {
   CampaignWorkerRecordDto,
   CreateCampaignRequestBody,
   CreateCampaignResponseData,
+  DisburseCampaignPayload,
   DisburseCampaignResponseData,
   SubmitCampaignApprovalRequestBody,
   WorkerCompensationRequestBody,
@@ -57,10 +58,17 @@ export const campaignsApi = {
     return api<CampaignSummaryDto>("/campaigns/summary", { token });
   },
 
-  getApprovers(token: string): Promise<CampaignApproverDto[]> {
-    return api<CampaignApproverDto[] | { items: CampaignApproverDto[] }>("/campaigns/approvers", {
-      token,
-    }).then((response) => (Array.isArray(response) ? response : (response?.items ?? [])));
+  async getApprovers(token: string): Promise<CampaignApproverDto[]> {
+    const response = await api<
+      | CampaignApproverDto[]
+      | { approvers?: CampaignApproverDto[]; items?: CampaignApproverDto[] }
+      | undefined
+    >("/campaigns/approvers", { token });
+
+    if (Array.isArray(response)) return response;
+    if (Array.isArray(response?.approvers)) return response.approvers;
+    if (Array.isArray(response?.items)) return response.items;
+    return [];
   },
 
   createCampaign(
@@ -115,11 +123,15 @@ export const campaignsApi = {
     });
   },
 
-  disburseCampaign(campaignId: string, token: string): Promise<DisburseCampaignResponseData> {
+  disburseCampaign(
+    campaignId: string,
+    token: string,
+    payload?: DisburseCampaignPayload
+  ): Promise<DisburseCampaignResponseData> {
     return api<DisburseCampaignResponseData>(`/campaigns/${campaignId}/disburse`, {
       method: "POST",
       token,
-      body: {},
+      body: payload ?? {},
     });
   },
 
