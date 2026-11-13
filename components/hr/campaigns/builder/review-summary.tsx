@@ -2,6 +2,7 @@
 
 import { ShieldCheck, Users } from "lucide-react";
 import { PanelSection } from "@/components/system/panel-section";
+import { parseAmount, type CompensationTerms } from "@/lib/campaign-math";
 import { formatEtb } from "@/lib/money";
 import type { CampaignApproverDto, CampaignCompensationModel } from "@/types/backend";
 
@@ -10,6 +11,22 @@ const MODEL_LABEL: Record<CampaignCompensationModel, string> = {
   FIXED: "Fixed Retainer",
   HYBRID_TIERED: "Tiered",
 };
+
+function describeTerms(terms: CompensationTerms): string {
+  switch (terms.model) {
+    case "PER_TASK":
+      return `Uniform ${formatEtb(parseAmount(terms.defaultRate))} / task`;
+    case "HYBRID_TIERED": {
+      const count = terms.taskTiers.length;
+      const tiers = terms.taskTiers
+        .map((tier) => `${tier.tierName.trim()} ${formatEtb(parseAmount(tier.rateEtb))}`)
+        .join(", ");
+      return `${count} ${count === 1 ? "tier" : "tiers"}: ${tiers}`;
+    }
+    case "FIXED":
+      return `Fixed stipend, ${formatEtb(parseAmount(terms.defaultFixedAmount))} by default`;
+  }
+}
 
 function SummaryRow({
   label,
@@ -29,14 +46,14 @@ function SummaryRow({
 export function ReviewSummary({
   title,
   projectCode,
-  model,
+  terms,
   approver,
   enrolledCount,
   totalBudget,
 }: {
   title: string;
   projectCode: string;
-  model: CampaignCompensationModel;
+  terms: CompensationTerms;
   approver: CampaignApproverDto | undefined;
   enrolledCount: number;
   totalBudget: number;
@@ -75,7 +92,12 @@ export function ReviewSummary({
         </SummaryRow>
 
         <SummaryRow label="Compensation Model">
-          <span className="font-semibold text-slate-900">{MODEL_LABEL[model]}</span>
+          <span className="inline-flex items-center rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold tracking-wide text-slate-900">
+            {MODEL_LABEL[terms.model]}
+          </span>
+          <span className="mt-1.5 block font-mono text-xs break-words text-slate-500 tabular">
+            {describeTerms(terms)}
+          </span>
         </SummaryRow>
 
         <SummaryRow label="Total Workers">

@@ -21,10 +21,14 @@ import { useAuth } from "@/lib/auth/auth-context";
 import {
   EMPTY_ROW,
   buildCompensationPayload,
+  campaignRatePerTask,
   fromCents,
   isRowAdjusted,
+  isTierComplete,
   netPayableCents,
   parseAmount,
+  toTaskTierPayload,
+  type CompensationTerms,
   type WorkerRowDraft,
 } from "@/lib/campaign-math";
 import { useApprovers, useSubmitCampaign } from "@/lib/hooks/use-campaigns";
@@ -36,7 +40,22 @@ const INITIAL_SETTINGS: CampaignSettingsDraft = {
   description: "",
   model: "PER_TASK",
   defaultRate: "100.00",
+  defaultFixedAmount: "",
+  taskTiers: [],
 };
+
+function missingTerm(terms: CompensationTerms): string | null {
+  switch (terms.model) {
+    case "PER_TASK":
+      return parseAmount(terms.defaultRate) > 0 ? null : "default rate per task";
+    case "FIXED":
+      return parseAmount(terms.defaultFixedAmount) > 0 ? null : "default fixed stipend";
+    case "HYBRID_TIERED":
+      return terms.taskTiers.length > 0 && terms.taskTiers.every(isTierComplete)
+        ? null
+        : "a name and rate for every compensation tier";
+  }
+}
 
 function CampaignBuilder() {
   const router = useRouter();
@@ -72,20 +91,18 @@ function CampaignBuilder() {
   const { enrolled, totalCents } = useMemo(() => {
     const list = workers.filter((worker) => rows[worker.contractId]?.enrolled);
     const cents = list.reduce(
-      (sum, worker) =>
-        sum + netPayableCents(rows[worker.contractId], settings.model, settings.defaultRate),
+      (sum, worker) => sum + netPayableCents(rows[worker.contractId], settings),
       0
     );
     return { enrolled: list, totalCents: cents };
-  }, [rows, settings.defaultRate, settings.model, workers]);
+  }, [rows, settings, workers]);
 
   const totalBudget = fromCents(totalCents);
 
   const detailsMissing = [
     !settings.title.trim() && "campaign title",
     !settings.projectCode.trim() && "project code",
-    parseAmount(settings.defaultRate) <= 0 &&
-      (settings.model === "FIXED" ? "default fixed fee" : "default rate"),
+    missingTerm(settings),
     !approver.approverId && "designated approver",
   ].filter((item): item is string => typeof item === "string");
 
@@ -121,6 +138,8 @@ function CampaignBuilder() {
   function handleSubmit() {
     if (missing.length > 0) return;
 
+    const defaultRatePerTaskEtb = campaignRatePerTask(settings);
+
     pipeline.submit(
       {
         campaign: {
@@ -129,16 +148,17 @@ function CampaignBuilder() {
           description: settings.description.trim() || undefined,
           compensationDefaults: {
             model: settings.model,
-            defaultRatePerTaskEtb: parseAmount(settings.defaultRate),
+            defaultRatePerTaskEtb,
+            taskTiers: toTaskTierPayload(settings),
           },
         },
         contractIds: enrolled.map((worker) => worker.contractId),
         compensation: enrolled.map((worker) => {
-          const row = rows[worker.contractId];
+          const payload = buildCompensationPayload(rows[worker.contractId], settings);
           return {
             contractId: worker.contractId,
-            adjusted: isRowAdjusted(row),
-            payload: buildCompensationPayload(row, settings.model, settings.defaultRate),
+            adjusted: isRowAdjusted(payload, defaultRatePerTaskEtb),
+            payload,
           };
         }),
         approval: { approverId: approver.approverId },
@@ -194,8 +214,7 @@ function CampaignBuilder() {
               error={signed.error}
               onRetry={() => void signed.refetch()}
               rows={rows}
-              model={settings.model}
-              defaultRate={settings.defaultRate}
+              terms={settings}
               lockedIds={pipeline.enrolledOnServer}
               enrolledCount={enrolled.length}
               totalBudget={totalBudget}
@@ -208,7 +227,7 @@ function CampaignBuilder() {
             <ReviewSummary
               title={settings.title.trim()}
               projectCode={settings.projectCode.trim()}
-              model={settings.model}
+              terms={settings}
               approver={selectedApprover}
               enrolledCount={enrolled.length}
               totalBudget={totalBudget}

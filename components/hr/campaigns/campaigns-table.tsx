@@ -8,7 +8,9 @@ import { cn } from "@/lib/utils";
 import type { CampaignListItemDto } from "@/types/backend";
 
 const HEAD_CELL =
-  "px-6 py-3 text-left align-middle text-[11px] font-semibold tracking-[0.1em] whitespace-nowrap text-slate-500 uppercase";
+  "px-4 py-3 text-left align-middle text-[11px] font-semibold tracking-[0.1em] whitespace-nowrap text-slate-500 uppercase first:pl-6 last:pr-6";
+
+const BODY_CELL = "px-4 py-4 first:pl-6 last:pr-6";
 
 const COLUMNS = [
   { label: "Campaign", align: "text-left" },
@@ -40,7 +42,9 @@ function Approver({ item }: { item: CampaignListItemDto }) {
   if (!item.approverName) return <span className="text-slate-400">—</span>;
   return (
     <>
-      <p className="truncate text-sm text-slate-700">{item.approverName}</p>
+      <p title={item.approverName} className="line-clamp-2 text-sm break-words text-slate-700">
+        {item.approverName}
+      </p>
       <p className="font-mono text-xs whitespace-nowrap text-slate-500 tabular">
         {maskPhone(item.approverPhone)}
       </p>
@@ -90,50 +94,67 @@ export function CampaignsTable({ items }: { items: CampaignListItemDto[] }) {
       </ul>
 
       <div className={cn(SURFACE_CARD, "hidden lg:block")}>
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/60">
-              {COLUMNS.map((column) => (
-                <th key={column.label} scope="col" className={cn(HEAD_CELL, column.align)}>
-                  {column.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr
-                key={item._id}
-                className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/80"
-              >
-                <td className="px-6 py-4">
-                  <p className="truncate font-semibold text-slate-900">{item.title}</p>
-                  <p className="mt-0.5 font-mono text-xs text-slate-500 tabular">
-                    {item.campaignNumber}
-                  </p>
-                </td>
-                <td className="px-6 py-4 font-mono text-xs whitespace-nowrap text-slate-600 uppercase">
-                  {item.projectCode}
-                </td>
-                <td className="px-6 py-4 text-sm whitespace-nowrap text-slate-700 tabular">
-                  {workerLabel(item.totalWorkers)}
-                </td>
-                <td className="px-6 py-4 text-right font-mono text-sm font-semibold whitespace-nowrap text-slate-900 tabular">
-                  {formatEtb(item.totalAmount)}
-                </td>
-                <td className="px-6 py-4 align-middle">
-                  <CampaignStatusBadge status={item.status} />
-                </td>
-                <td className="px-6 py-4">
-                  <Approver item={item} />
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <ViewDeskLink id={item._id} />
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/60">
+                {COLUMNS.map((column) => (
+                  <th key={column.label} scope="col" className={cn(HEAD_CELL, column.align)}>
+                    {column.label}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr
+                  key={item._id}
+                  className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/80"
+                >
+                  <td className={BODY_CELL}>
+                    <p
+                      title={item.title}
+                      className="line-clamp-2 min-w-48 font-semibold break-words text-slate-900"
+                    >
+                      {item.title}
+                    </p>
+                    <p className="mt-0.5 font-mono text-xs whitespace-nowrap text-slate-500 tabular">
+                      {item.campaignNumber}
+                    </p>
+                  </td>
+                  <td
+                    className={cn(
+                      BODY_CELL,
+                      "font-mono text-xs whitespace-nowrap text-slate-600 uppercase"
+                    )}
+                  >
+                    {item.projectCode}
+                  </td>
+                  <td className={cn(BODY_CELL, "text-sm whitespace-nowrap text-slate-700 tabular")}>
+                    {workerLabel(item.totalWorkers)}
+                  </td>
+                  <td
+                    className={cn(
+                      BODY_CELL,
+                      "text-right font-mono text-sm font-semibold whitespace-nowrap text-slate-900 tabular"
+                    )}
+                  >
+                    {formatEtb(item.totalAmount)}
+                  </td>
+                  <td className={cn(BODY_CELL, "align-middle")}>
+                    <CampaignStatusBadge status={item.status} />
+                  </td>
+                  <td className={cn(BODY_CELL, "min-w-40")}>
+                    <Approver item={item} />
+                  </td>
+                  <td className={cn(BODY_CELL, "text-right")}>
+                    <ViewDeskLink id={item._id} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );

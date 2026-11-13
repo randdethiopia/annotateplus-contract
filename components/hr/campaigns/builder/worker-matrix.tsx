@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Lock,
   Search,
   SearchX,
   Users,
@@ -15,16 +16,28 @@ import { QueueShell } from "@/components/system/queue-shell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   EMPTY_ROW,
   fromCents,
   netPayableCents,
+  parseAmount,
+  ratePerTask,
+  resolveTier,
   sanitizeAmountInput,
   sanitizeCountInput,
+  type CompensationTerms,
+  type TierDraft,
   type WorkerRowDraft,
 } from "@/lib/campaign-math";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import { describeError } from "@/lib/describe-error";
-import { formatEtb } from "@/lib/money";
+import { formatAmount, formatEtb } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { CampaignCompensationModel, ContractListItemDto } from "@/types/backend";
 
@@ -36,14 +49,63 @@ type MatrixView = "ALL" | "ENROLLED";
 
 export type RowChangeHandler = (contractId: string, patch: Partial<WorkerRowDraft>) => void;
 
+type CompensationColumn = "tasks" | "rate" | "tier" | "fixed";
+
+type CellRenderer = (className?: string) => ReactNode;
+
+interface ColumnSpec {
+  key: CompensationColumn;
+  label: string;
+  cardLabel: string;
+  align: string;
+  width: string;
+}
+
+const TASKS_COLUMN: ColumnSpec = {
+  key: "tasks",
+  label: "Tasks",
+  cardLabel: "Tasks",
+  align: "text-center",
+  width: "w-16",
+};
+
+const COMPENSATION_COLUMNS: Record<CampaignCompensationModel, ColumnSpec[]> = {
+  PER_TASK: [
+    TASKS_COLUMN,
+    { key: "rate", label: "Rate (ETB)", cardLabel: "Rate (ETB)", align: "text-right", width: "" },
+  ],
+  HYBRID_TIERED: [
+    { key: "tier", label: "Tier (Rate)", cardLabel: "Tier (Rate)", align: "text-left", width: "w-36" },
+    TASKS_COLUMN,
+  ],
+  FIXED: [
+    {
+      key: "fixed",
+      label: "Fixed Stipend (ETB)",
+      cardLabel: "Fixed Stipend (ETB)",
+      align: "text-right",
+      width: "w-28",
+    },
+  ],
+};
+
 const HEAD_CELL =
-  "px-4 py-3 align-middle text-[11px] font-semibold tracking-[0.1em] whitespace-nowrap text-slate-500 uppercase";
+  "px-2.5 py-3 align-middle text-[11px] font-semibold tracking-[0.1em] whitespace-nowrap text-slate-500 uppercase";
+
+const BODY_CELL = "px-2.5 py-3";
 
 const CELL_INPUT =
   "rounded border border-slate-200 bg-white px-2 py-1 font-mono text-sm text-slate-900 tabular transition-colors placeholder:text-slate-400 focus:border-slate-400 focus:ring-1 focus:ring-slate-900/10 focus:outline-none disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-slate-300 disabled:placeholder:text-slate-300";
 
+const TIER_TRIGGER =
+  "h-8 rounded border border-slate-200 bg-white px-2 py-1 text-sm font-normal text-slate-900 shadow-none focus-visible:border-slate-400 focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-slate-900/10 disabled:border-transparent disabled:bg-transparent disabled:text-slate-300 disabled:opacity-100 data-[size=sm]:h-8";
+
 function workerName(worker: ContractListItemDto): string {
   return worker.candidateName ?? "Unnamed annotator";
+}
+
+function tierLabel(tier: TierDraft): string {
+  return `${tier.tierName.trim()} (${formatAmount(parseAmount(tier.rateEtb))} ETB)`;
 }
 
 function CellInput({
@@ -82,17 +144,38 @@ function CellInput({
   );
 }
 
-function BankAccount({ worker }: { worker: ContractListItemDto }) {
+function BankAccount({
+  worker,
+  stacked = false,
+  className,
+}: {
+  worker: ContractListItemDto;
+  stacked?: boolean;
+  className?: string;
+}) {
   if (!worker.bankName && !worker.bankAccountMasked) {
     return <span className="text-xs text-slate-400">—</span>;
   }
+  const bank = worker.bankName ?? "—";
+  const account = worker.bankAccountMasked ?? "—";
+  if (stacked) {
+    return (
+      <span title={`${bank} · ${account}`} className={cn("block text-xs text-slate-700", className)}>
+        <span className="block truncate">{bank}</span>
+        <span className="block truncate font-mono text-slate-500 tabular">{account}</span>
+      </span>
+    );
+  }
   return (
-    <span className="text-xs whitespace-nowrap text-slate-700">
-      {worker.bankName ?? "—"}
-      <span className="mx-1.5 text-slate-300" aria-hidden>
+    <span
+      title={`${bank} · ${account}`}
+      className={cn("flex items-baseline text-xs whitespace-nowrap text-slate-700", className)}
+    >
+      <span className="min-w-0 truncate">{bank}</span>
+      <span className="mx-1.5 shrink-0 text-slate-300" aria-hidden>
         ·
       </span>
-      <span className="font-mono text-slate-500 tabular">{worker.bankAccountMasked ?? "—"}</span>
+      <span className="shrink-0 font-mono text-slate-500 tabular">{account}</span>
     </span>
   );
 }
@@ -100,49 +183,86 @@ function BankAccount({ worker }: { worker: ContractListItemDto }) {
 interface RowProps {
   worker: ContractListItemDto;
   draft: WorkerRowDraft;
-  model: CampaignCompensationModel;
-  defaultRate: string;
+  terms: CompensationTerms;
   /** Enrolled server-side by an earlier, partly failed submission — cannot be removed here. */
   locked: boolean;
   onRowChange: RowChangeHandler;
 }
 
-function useRowCells({ worker, draft, model, defaultRate, onRowChange }: RowProps) {
+function useRowCells({ worker, draft, terms, onRowChange }: RowProps) {
   const name = workerName(worker);
-  const isFixed = model === "FIXED";
   const disabled = !draft.enrolled;
   const set = (patch: Partial<WorkerRowDraft>) => onRowChange(worker.contractId, patch);
-  const net = draft.enrolled
-    ? formatEtb(fromCents(netPayableCents(draft, model, defaultRate)))
-    : "—";
+  const net = draft.enrolled ? formatEtb(fromCents(netPayableCents(draft, terms))) : "—";
 
-  return {
-    name,
-    net,
-    tasks: (className?: string) => (
+  const compensation: Record<CompensationColumn, CellRenderer> = {
+    tasks: (className) => (
       <CellInput
         kind="count"
-        value={isFixed ? "" : draft.tasks}
+        value={draft.tasks}
         onChange={(tasks) => set({ tasks })}
         label={`Tasks for ${name}`}
-        placeholder={isFixed ? "—" : "0"}
-        disabled={disabled || isFixed}
+        placeholder="0"
+        disabled={disabled}
         className={cn("text-center", className)}
       />
     ),
-    rate: (className?: string) => (
-      // The placeholder *is* the inherited default, in a lighter ink, so an
-      // overridden row reads differently from one that follows the campaign.
+    rate: (className) => (
+      <span
+        title="Locked to the campaign rate"
+        className={cn(
+          "inline-flex items-center justify-end gap-1.5 font-mono text-sm tabular",
+          disabled ? "text-slate-300" : "text-slate-600",
+          className
+        )}
+      >
+        <Lock className="size-3 shrink-0" aria-hidden />
+        {formatAmount(ratePerTask(draft, terms))}
+      </span>
+    ),
+    tier: (className) => {
+      const current = resolveTier(draft.tierId, terms.taskTiers);
+      return (
+        <Select
+          value={current?.id ?? ""}
+          onValueChange={(tierId) => set({ tierId })}
+          disabled={disabled}
+        >
+          <SelectTrigger
+            size="sm"
+            aria-label={`Tier for ${name}`}
+            title={current ? tierLabel(current) : undefined}
+            className={cn(TIER_TRIGGER, className)}
+          >
+            <SelectValue placeholder="—" />
+          </SelectTrigger>
+          <SelectContent>
+            {terms.taskTiers.map((tier) => (
+              <SelectItem key={tier.id} value={tier.id}>
+                {tierLabel(tier)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    },
+    fixed: (className) => (
       <CellInput
         kind="amount"
-        value={draft.rate ?? ""}
-        onChange={(rate) => set({ rate: rate === "" ? null : rate })}
-        label={`${isFixed ? "Fee" : "Rate"} for ${name}`}
-        placeholder={defaultRate || "0.00"}
+        value={draft.fixedAmount ?? ""}
+        onChange={(value) => set({ fixedAmount: value === "" ? null : value })}
+        label={`Fixed stipend for ${name}`}
+        placeholder={terms.defaultFixedAmount || "0.00"}
         disabled={disabled}
         className={cn("text-right", className)}
       />
     ),
+  };
+
+  return {
+    name,
+    net,
+    compensation,
     bonus: (className?: string) => (
       <CellInput
         kind="amount"
@@ -169,7 +289,7 @@ function useRowCells({ worker, draft, model, defaultRate, onRowChange }: RowProp
 }
 
 const MatrixRow = memo(function MatrixRow(props: RowProps) {
-  const { worker, draft, locked, onRowChange } = props;
+  const { worker, draft, terms, locked, onRowChange } = props;
   const cells = useRowCells(props);
   const checkboxId = `enroll-${worker.contractId}`;
 
@@ -180,7 +300,7 @@ const MatrixRow = memo(function MatrixRow(props: RowProps) {
         draft.enrolled ? "bg-white" : "bg-white hover:bg-slate-50/70"
       )}
     >
-      <td className="w-12 py-3 pr-2 pl-6">
+      <td className="w-10 py-3 pr-2 pl-4">
         <Checkbox
           id={checkboxId}
           checked={draft.enrolled}
@@ -191,29 +311,39 @@ const MatrixRow = memo(function MatrixRow(props: RowProps) {
           aria-label={`Enroll ${cells.name}`}
         />
       </td>
-      <td className="px-4 py-3">
+      <td className={BODY_CELL}>
         <label htmlFor={checkboxId} className="block cursor-pointer">
-          <span className="block truncate text-sm font-semibold text-slate-900">{cells.name}</span>
+          <span
+            title={cells.name}
+            className="block max-w-[160px] truncate text-sm font-semibold text-slate-900"
+          >
+            {cells.name}
+          </span>
           {worker.candidateNameAmharic && (
-            <span className="font-ethiopic block truncate text-xs text-slate-500">
+            <span className="font-ethiopic block max-w-[160px] truncate text-xs text-slate-500">
               {worker.candidateNameAmharic}
             </span>
           )}
         </label>
       </td>
-      <td className="px-4 py-3 font-mono text-xs whitespace-nowrap text-slate-500 tabular">
-        {worker.contractNumber}
+      <td className={cn(BODY_CELL, "font-mono text-xs whitespace-nowrap text-slate-500 tabular")}>
+        <span title={worker.contractNumber} className="block max-w-[140px] truncate">
+          {worker.contractNumber}
+        </span>
       </td>
-      <td className="px-4 py-3">
-        <BankAccount worker={worker} />
+      <td className={BODY_CELL}>
+        <BankAccount worker={worker} stacked className="max-w-[180px]" />
       </td>
-      <td className="px-4 py-3 text-center">{cells.tasks("w-20")}</td>
-      <td className="px-4 py-3 text-right">{cells.rate("w-24")}</td>
-      <td className="px-4 py-3 text-right">{cells.bonus("w-24")}</td>
-      <td className="px-4 py-3 text-right">{cells.deduction("w-24")}</td>
+      {COMPENSATION_COLUMNS[terms.model].map((column) => (
+        <td key={column.key} className={cn(BODY_CELL, column.align)}>
+          {cells.compensation[column.key](column.width)}
+        </td>
+      ))}
+      <td className={cn(BODY_CELL, "text-right")}>{cells.bonus("w-20")}</td>
+      <td className={cn(BODY_CELL, "text-right")}>{cells.deduction("w-20")}</td>
       <td
         className={cn(
-          "py-3 pr-6 pl-4 text-right font-mono text-sm font-semibold whitespace-nowrap tabular",
+          "py-3 pr-4 pl-2.5 text-right font-mono text-sm font-semibold whitespace-nowrap tabular",
           draft.enrolled ? "text-slate-900" : "text-slate-300"
         )}
       >
@@ -224,12 +354,12 @@ const MatrixRow = memo(function MatrixRow(props: RowProps) {
 });
 
 const MatrixCard = memo(function MatrixCard(props: RowProps) {
-  const { worker, draft, model, locked, onRowChange } = props;
+  const { worker, draft, terms, locked, onRowChange } = props;
   const cells = useRowCells(props);
   const checkboxId = `enroll-card-${worker.contractId}`;
 
-  const field = (label: string, input: ReactNode) => (
-    <div className="space-y-1">
+  const field = (key: string, label: string, input: ReactNode) => (
+    <div key={key} className="space-y-1">
       <p className="text-[11px] font-semibold tracking-[0.1em] text-slate-500 uppercase">{label}</p>
       {input}
     </div>
@@ -262,10 +392,17 @@ const MatrixCard = memo(function MatrixCard(props: RowProps) {
       {draft.enrolled && (
         <>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {field("Tasks", cells.tasks("w-full"))}
-            {field(model === "FIXED" ? "Fee (ETB)" : "Rate (ETB)", cells.rate("w-full"))}
-            {field("Bonus (ETB)", cells.bonus("w-full"))}
-            {field("Deduction (ETB)", cells.deduction("w-full"))}
+            {COMPENSATION_COLUMNS[terms.model].map((column) =>
+              field(
+                column.key,
+                column.cardLabel,
+                cells.compensation[column.key](
+                  column.key === "rate" ? "w-full justify-start py-1" : "w-full"
+                )
+              )
+            )}
+            {field("bonus", "Bonus (ETB)", cells.bonus("w-full"))}
+            {field("deduction", "Deduction (ETB)", cells.deduction("w-full"))}
           </div>
           <div className="mt-3 flex items-baseline justify-between border-t border-slate-100 pt-3">
             <span className="text-xs font-medium text-slate-500">Net payable</span>
@@ -344,8 +481,7 @@ export function WorkerMatrix({
   error,
   onRetry,
   rows,
-  model,
-  defaultRate,
+  terms,
   lockedIds,
   enrolledCount,
   totalBudget,
@@ -361,8 +497,7 @@ export function WorkerMatrix({
   error: unknown;
   onRetry: () => void;
   rows: Record<string, WorkerRowDraft>;
-  model: CampaignCompensationModel;
-  defaultRate: string;
+  terms: CompensationTerms;
   lockedIds: Record<string, string>;
   enrolledCount: number;
   totalBudget: number;
@@ -424,14 +559,12 @@ export function WorkerMatrix({
     { value: "ENROLLED", label: "Enrolled in Campaign", count: enrolledCount },
   ];
 
-  const rateHeader = model === "FIXED" ? "Fee (ETB)" : "Rate (ETB)";
   const hasQuery = search.trim().length > 0;
 
   const rowProps = (worker: ContractListItemDto): RowProps => ({
     worker,
     draft: rows[worker.contractId] ?? EMPTY_ROW,
-    model,
-    defaultRate,
+    terms,
     locked: worker.contractId in lockedIds,
     onRowChange,
   });
@@ -606,10 +739,10 @@ export function WorkerMatrix({
         </ul>
 
         <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full min-w-[1100px] border-collapse text-sm">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/60">
-                <th scope="col" className={cn(HEAD_CELL, "w-12 pr-2 pl-6")}>
+                <th scope="col" className={cn(HEAD_CELL, "w-10 pr-2 pl-4")}>
                   <span className="sr-only">Enrolled</span>
                 </th>
                 <th scope="col" className={cn(HEAD_CELL, "text-left")}>
@@ -621,19 +754,18 @@ export function WorkerMatrix({
                 <th scope="col" className={cn(HEAD_CELL, "text-left")}>
                   Bank &amp; Account
                 </th>
-                <th scope="col" className={cn(HEAD_CELL, "text-center")}>
-                  Tasks
+                {COMPENSATION_COLUMNS[terms.model].map((column) => (
+                  <th key={column.key} scope="col" className={cn(HEAD_CELL, column.align)}>
+                    {column.label}
+                  </th>
+                ))}
+                <th scope="col" className={cn(HEAD_CELL, "text-right")}>
+                  Bonus
                 </th>
                 <th scope="col" className={cn(HEAD_CELL, "text-right")}>
-                  {rateHeader}
+                  Deduction
                 </th>
-                <th scope="col" className={cn(HEAD_CELL, "text-right")}>
-                  Bonus (ETB)
-                </th>
-                <th scope="col" className={cn(HEAD_CELL, "text-right")}>
-                  Deduction (ETB)
-                </th>
-                <th scope="col" className={cn(HEAD_CELL, "pr-6 text-right")}>
+                <th scope="col" className={cn(HEAD_CELL, "pr-4 text-right")}>
                   Net Payable
                 </th>
               </tr>

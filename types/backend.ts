@@ -671,7 +671,7 @@ export type WorkerCompensationType = "TASK_BASED" | "FIXED" | "ADDENDUM";
 export interface WorkerCompensationRequestBody {
   compensationType: WorkerCompensationType;
   taskCount: number;
-  appliedRateEtb: number;
+  appliedRateEtb?: number;
   fixedAmountEtb?: number;
   bonusEtb?: number;
   deductionEtb?: number;
