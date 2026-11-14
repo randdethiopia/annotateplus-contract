@@ -101,6 +101,30 @@ export interface LoginResponseData {
   user: StaffUserDto;
 }
 
+export interface ActivationPreviewDto {
+  fullName: string;
+  emailMasked: string;
+  role: UserRole;
+  expiresAt: string;
+}
+
+export interface ActivateAccountPayload {
+  token: string;
+  password: string;
+}
+
+export interface ActivateAccountResponseData {
+  activated: boolean;
+  emailMasked: string;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export type ChangePasswordResponseData = LoginResponseData;
+
 // ============================================================
 // Worker portal
 // ============================================================

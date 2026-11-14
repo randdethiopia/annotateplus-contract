@@ -17,6 +17,7 @@ interface AuthContextValue {
   status: "loading" | "authed" | "anon";
   login: (email: string, password: string) => Promise<StaffUserDto>;
   logout: () => void;
+  updateSession: (token: string, user: StaffUserDto) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -79,8 +80,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("anon");
   }
 
+  function updateSession(nextToken: string, nextUser: StaffUserDto) {
+    writeStorage({ token: nextToken, user: nextUser });
+    setToken(nextToken);
+    setUser(nextUser);
+    setStatus("authed");
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, status, login, logout }}>
+    <AuthContext.Provider value={{ user, token, status, login, logout, updateSession }}>
       {children}
     </AuthContext.Provider>
   );

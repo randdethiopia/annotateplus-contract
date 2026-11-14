@@ -1,10 +1,23 @@
 "use client";
 
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { ChevronDown, KeyRound, LogOut } from "lucide-react";
+import { ChangePasswordDialog } from "@/components/auth/change-password-dialog";
 import { BrandLogo } from "@/components/branding/brand-logo";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth/auth-context";
+import { roleLabel } from "@/lib/auth/roles";
 import { getInitials } from "@/lib/initials";
 import { hasAnyPermission } from "@/lib/hooks/use-permission";
 import { hrLandingHref } from "@/lib/auth/landing";
@@ -65,6 +78,8 @@ export function AppHeader({
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const accountTriggerRef = useRef<HTMLButtonElement>(null);
 
   function handleLogout() {
     logout();
@@ -124,27 +139,66 @@ export function AppHeader({
       </div>
 
       {user && (
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <span
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-medium text-white"
-            aria-hidden
-          >
-            {getInitials(user.fullName, 1)}
-          </span>
-          {/* The name is decoration next to the avatar on a phone — the sign-out
-              control is what has to survive the narrow width. */}
-          <span className="hidden max-w-40 truncate text-sm font-medium text-slate-700 lg:block">
-            {user.fullName}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            className="text-slate-600 hover:text-slate-900"
-          >
-            Sign out
-          </Button>
+        <div className="flex shrink-0 items-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                ref={accountTriggerRef}
+                type="button"
+                variant="ghost"
+                className="h-10 gap-2 rounded-lg px-1.5 text-slate-700 hover:bg-slate-100 hover:text-slate-900 data-[state=open]:bg-slate-100 md:pr-2.5"
+              >
+                <span
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-medium text-white"
+                  aria-hidden
+                >
+                  {getInitials(user.fullName, 1)}
+                </span>
+                <span className="hidden min-w-0 flex-col items-start leading-tight md:flex">
+                  <span className="max-w-40 truncate text-sm font-medium text-slate-800">
+                    {user.fullName}
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-500">
+                    {roleLabel(user.role)}
+                  </span>
+                </span>
+                <span className="sr-only">Open account menu</span>
+                <ChevronDown className="size-4 text-slate-400" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              onCloseAutoFocus={(event) => {
+                if (passwordOpen) event.preventDefault();
+              }}
+              className="w-64 max-w-[calc(100vw-2rem)] rounded-lg border-slate-200 bg-white p-1.5"
+            >
+              <DropdownMenuLabel className="px-2 py-2 font-normal">
+                <span className="block truncate text-sm font-semibold text-slate-900">
+                  {user.fullName}
+                </span>
+                <span className="mt-0.5 block truncate text-xs text-slate-500">{user.email}</span>
+                <Badge variant="secondary" className="mt-2">
+                  {roleLabel(user.role)}
+                </Badge>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-slate-200" />
+              <DropdownMenuItem onSelect={() => setPasswordOpen(true)} className="py-2">
+                <KeyRound aria-hidden />
+                Change password
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleLogout} className="py-2">
+                <LogOut aria-hidden />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <ChangePasswordDialog
+            open={passwordOpen}
+            onOpenChange={setPasswordOpen}
+            returnFocusRef={accountTriggerRef}
+          />
         </div>
       )}
     </header>
