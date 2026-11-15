@@ -33,6 +33,10 @@ import { Field } from "@/components/system/field";
 import { CONTROL, CONTROL_INVALID } from "@/components/system/control-styles";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
+  CANDIDATE_POOL_PERMISSION,
+  canIssueFromCandidatePool,
+} from "@/lib/auth/candidate-access";
+import {
   CONTRACT_TEMPLATES,
   DEFAULT_TEMPLATE_ID,
   type ContractTemplate,
@@ -106,19 +110,22 @@ function ModeButton({
   icon: Icon,
   label,
   onClick,
+  disabled = false,
 }: {
   active: boolean;
   icon: typeof Users;
   label: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-all duration-100 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-slate-900/10 focus-visible:outline-none",
+        "inline-flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-all duration-100 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-slate-900/10 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
         active
           ? "bg-slate-900 text-white shadow-xs"
           : "text-slate-600 hover:text-slate-900"
@@ -131,8 +138,9 @@ function ModeButton({
 }
 
 export function CreateContractDialog() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const canCreate = useHasPermission("contracts:create");
+  const canUsePool = canIssueFromCandidatePool(user);
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<CreateContractResponseData | null>(null);
   // The response does not echo the phone back and `reset()` clears the field,
@@ -140,6 +148,7 @@ export function CreateContractDialog() {
   const [issuedPhone, setIssuedPhone] = useState("");
 
   const [sourceMode, setSourceMode] = useState<SourceMode>("applicant");
+  const activeMode: SourceMode = canUsePool ? sourceMode : "manual";
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateItemDto | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const { trackBulkJob } = useBulkJobTracker();
@@ -180,7 +189,7 @@ export function CreateContractDialog() {
   }
 
   function switchMode(next: SourceMode) {
-    if (next === sourceMode) return;
+    if (next === activeMode) return;
     setSourceMode(next);
     setSelectedCandidate(null);
     setValue("phone", "", { shouldValidate: false, shouldDirty: false });
@@ -219,7 +228,7 @@ export function CreateContractDialog() {
       {
         phone: values.phone,
         templateId: values.templateId || DEFAULT_TEMPLATE_ID,
-        candidateId: sourceMode === "applicant" ? selectedCandidate?._id : undefined,
+        candidateId: activeMode === "applicant" ? selectedCandidate?._id : undefined,
       },
       {
         onSuccess: (data) => setResult(data),
@@ -233,7 +242,17 @@ export function CreateContractDialog() {
 
   const inviteLink = result ? buildInviteLink(result.inviteLink) : "";
   const smsStatus = result?.smsStatus ? SMS_STATUS[result.smsStatus] : null;
-  const missingSelection = sourceMode === "applicant" && !selectedCandidate;
+  const missingSelection = activeMode === "applicant" && !selectedCandidate;
+
+  const applicantModeButton = (
+    <ModeButton
+      active={activeMode === "applicant"}
+      icon={Users}
+      label="Select from Applicants"
+      onClick={() => switchMode("applicant")}
+      disabled={!canUsePool}
+    />
+  );
 
   if (!canCreate) {
     return (
@@ -280,7 +299,7 @@ export function CreateContractDialog() {
             // is already correct by default; the worker is what needs picking.
             if (result) return;
             event.preventDefault();
-            if (sourceMode === "manual") setFocus("phone");
+            if (activeMode === "manual") setFocus("phone");
           }}
         >
           {result ? (
@@ -409,14 +428,18 @@ export function CreateContractDialog() {
                     aria-label="Worker source"
                     className="mt-2 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1"
                   >
+                    {canUsePool ? (
+                      applicantModeButton
+                    ) : (
+                      <CapabilityTooltip
+                        message={capabilityMessage(CANDIDATE_POOL_PERMISSION)}
+                        className="w-full"
+                      >
+                        {applicantModeButton}
+                      </CapabilityTooltip>
+                    )}
                     <ModeButton
-                      active={sourceMode === "applicant"}
-                      icon={Users}
-                      label="Select from Applicants"
-                      onClick={() => switchMode("applicant")}
-                    />
-                    <ModeButton
-                      active={sourceMode === "manual"}
+                      active={activeMode === "manual"}
                       icon={Keyboard}
                       label="Enter Phone Manually"
                       onClick={() => switchMode("manual")}
@@ -424,7 +447,7 @@ export function CreateContractDialog() {
                   </div>
                 </div>
 
-                {sourceMode === "applicant" ? (
+                {activeMode === "applicant" ? (
                   selectedCandidate ? (
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-3.5 text-xs">
                       <div className="min-w-0">
