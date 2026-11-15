@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { Field } from "@/components/system/field";
 import { PanelSection } from "@/components/system/panel-section";
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,27 @@ export interface ApproverDraft {
   approverId: string;
 }
 
-function ApproverOption({ approver }: { approver: CampaignApproverDto }) {
+type EmailableApprover = CampaignApproverDto & { emailMasked: string };
+
+function isSelectableApprover(approver: CampaignApproverDto): approver is EmailableApprover {
+  return approver.isActive !== false && Boolean(approver.emailMasked);
+}
+
+function ApproverOption({ approver }: { approver: EmailableApprover }) {
   return (
-    <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-      <span className="text-foreground truncate text-[15px] font-medium">{approver.fullName}</span>
-      <span className="text-muted-foreground truncate text-xs">
-        {approver.title}
-        <span className="mx-1.5 text-slate-300">|</span>
-        <span className="font-mono tabular">{approver.phoneMasked}</span>
+    <span className="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">
+      <span className="text-foreground max-w-full truncate text-[15px] font-medium">
+        {approver.fullName}
+      </span>
+      <span className="text-muted-foreground flex max-w-full min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+        <span className="truncate">{approver.title}</span>
+        <span className="text-slate-300" aria-hidden>
+          |
+        </span>
+        <span className="inline-flex min-w-0 items-center gap-1">
+          <Mail className="size-3.5 shrink-0 text-slate-400" aria-hidden />
+          <span className="truncate font-mono tabular">{approver.emailMasked}</span>
+        </span>
       </span>
     </span>
   );
@@ -42,14 +55,14 @@ export function ApproverSection({
   onChange: (patch: Partial<ApproverDraft>) => void;
 }) {
   const { data, isPending, isError, error, refetch } = useApprovers(token || null);
-  const approvers = (data ?? []).filter((approver) => approver.isActive !== false);
+  const approvers = (data ?? []).filter(isSelectableApprover);
   const selected = approvers.find((approver) => approver._id === value.approverId);
 
   return (
     <PanelSection
       id="approver-heading"
       label="Designated Approver"
-      description="The executive whose SMS OTP authorizes this disbursement."
+      description="The executive who receives the approval link by email and authorizes this disbursement."
     >
       <div className="max-w-xl">
         <Field
@@ -114,7 +127,8 @@ export function ApproverSection({
 
         {!isPending && !isError && approvers.length === 0 && (
           <p className="text-destructive mt-2 text-xs font-medium">
-            No active executive approvers are registered. Ask an administrator to add one.
+            No active executive approvers with an email on file are registered. Ask an
+            administrator to add one.
           </p>
         )}
       </div>
@@ -122,8 +136,9 @@ export function ApproverSection({
       <div className="mt-8 flex max-w-xl items-start gap-3 border-l border-slate-300 py-1 pl-4">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />
         <p className="text-[15px] leading-relaxed text-pretty text-slate-500">
-          The designated manager will receive an AfroMessage SMS with a secure capability link and a
-          25-minute One-Time Password (OTP) to review and authorize this disbursement.
+          The approval request link will be emailed to the selected executive. From that page they
+          request a 6-digit verification code, sent to the same inbox and valid for 25 minutes, to
+          review and authorize this disbursement.
         </p>
       </div>
     </PanelSection>

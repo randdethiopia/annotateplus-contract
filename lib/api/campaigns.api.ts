@@ -15,7 +15,9 @@ import type {
   CreateCampaignResponseData,
   DisburseCampaignPayload,
   DisburseCampaignResponseData,
+  RequestApprovalOtpResponseData,
   SubmitCampaignApprovalRequestBody,
+  SubmitCampaignApprovalResponseData,
   WorkerCompensationRequestBody,
 } from "@/types/backend";
 
@@ -115,8 +117,8 @@ export const campaignsApi = {
     campaignId: string,
     payload: SubmitCampaignApprovalRequestBody,
     token: string
-  ): Promise<unknown> {
-    return api<unknown>(`/campaigns/${campaignId}/submit-approval`, {
+  ): Promise<SubmitCampaignApprovalResponseData> {
+    return api<SubmitCampaignApprovalResponseData>(`/campaigns/${campaignId}/submit-approval`, {
       method: "POST",
       token,
       body: payload,
@@ -138,6 +140,13 @@ export const campaignsApi = {
   // The capability token is the path segment; these calls carry no bearer token.
   getApprovalView(token: string): Promise<ApprovalViewDto> {
     return api<ApprovalViewDto>(`/campaign-approvals/${encodeURIComponent(token)}`);
+  },
+
+  requestApprovalOtp(token: string): Promise<RequestApprovalOtpResponseData> {
+    return api<RequestApprovalOtpResponseData>(
+      `/campaign-approvals/${encodeURIComponent(token)}/request-otp`,
+      { method: "POST", body: {} }
+    );
   },
 
   verifyManagerOtp(token: string, otp: string): Promise<VerifyManagerOtpResponseData | undefined> {

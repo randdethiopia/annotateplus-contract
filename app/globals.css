@@ -169,6 +169,11 @@
   }
 }
 
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 @utility tabular {
   font-variant-numeric: tabular-nums;
 }

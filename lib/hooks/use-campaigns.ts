@@ -14,6 +14,7 @@ import type {
   CampaignWorkerRecordDto,
   CreateCampaignRequestBody,
   SubmitCampaignApprovalRequestBody,
+  SubmitCampaignApprovalResponseData,
   WorkerCompensationRequestBody,
 } from "@/types/backend";
 
@@ -244,6 +245,38 @@ async function atStage<T>(stage: CampaignSubmitStage, run: () => Promise<T>): Pr
   }
 }
 
+function announceApprovalRequest(approval: SubmitCampaignApprovalResponseData) {
+  if (approval.emailDelivered) {
+    toast.success(`Campaign ${approval.campaignNumber} submitted for approval`, {
+      description: `The approval link was emailed to ${approval.approverEmailMasked}.`,
+    });
+    return;
+  }
+
+  const toastId = `approval-link-${approval.campaignId}`;
+  const approvalUrl = new URL(approval.approvalPath, window.location.origin).toString();
+
+  toast.warning(`Campaign ${approval.campaignNumber} is awaiting approval`, {
+    id: toastId,
+    duration: Number.POSITIVE_INFINITY,
+    closeButton: true,
+    description: `The approval email to ${approval.approverEmailMasked} could not be delivered. Copy the secure link and send it to them directly. This link is shown only once; the verification code is still emailed to the approver.`,
+    action: {
+      label: "Copy link",
+      onClick: (event) => {
+        event.preventDefault();
+        navigator.clipboard.writeText(approvalUrl).then(
+          () => {
+            toast.dismiss(toastId);
+            toast.success("Approval link copied");
+          },
+          () => toast.error("Could not copy — your browser blocked clipboard access.")
+        );
+      },
+    },
+  });
+}
+
 async function runPool<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
   let next = 0;
   const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -349,15 +382,15 @@ export function useSubmitCampaign(token: string) {
       }
 
       setStage("approve");
-      await atStage("approve", () =>
+      const approval = await atStage("approve", () =>
         campaignsApi.submitCampaignApproval(campaignId, submission.approval, token)
       );
-      return { campaignId };
+      return { campaignId, approval };
     },
-    onSuccess: () => {
+    onSuccess: ({ approval }) => {
       invalidateCampaigns();
       save(EMPTY_PROGRESS);
-      toast.success("Campaign submitted! SMS OTP sent to manager.");
+      announceApprovalRequest(approval);
     },
     onError: (err) => {
       console.error("Campaign submission failed", err);

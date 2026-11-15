@@ -706,12 +706,23 @@ export interface CampaignApproverDto {
   _id: string;
   fullName: string;
   title: string;
-  phoneMasked: string;
+  emailMasked?: string;
+  phoneMasked?: string | null;
   isActive?: boolean;
 }
 
 export interface SubmitCampaignApprovalRequestBody {
   approverId: string;
+}
+
+export interface SubmitCampaignApprovalResponseData {
+  campaignId: string;
+  campaignNumber: string;
+  status: CampaignStatus;
+  approverEmailMasked: string;
+  capabilityToken: string;
+  approvalPath: string;
+  emailDelivered: boolean;
 }
 
 // ============================================================
@@ -733,16 +744,29 @@ export interface ApprovalViewDto {
   projectCode: string;
   totalAmount: number;
   totalWorkers: number;
-  approverName: string;
-  approverPhoneMasked: string;
+  approverName?: string;
+  approverEmailMasked?: string | null;
+  approverPhoneMasked?: string | null;
   status: CampaignStatus;
-  otpExpiresAt: string;
+  otpRequested: boolean;
+  otpExpiresAt: string | null;
+  otpAttemptsRemaining: number;
+  otpLocked: boolean;
+  otpResendAvailableAt: string | null;
+  otpSendsRemaining?: number;
   workers: ApprovalWorkerDto[];
   /** The fields below are optional so the portal degrades gracefully until the backend sends them. */
   compensationDefaults?: Pick<CampaignDefaultsDto, "model">;
-  otpLocked?: boolean;
-  attemptsRemaining?: number;
   approvedAt?: string;
+}
+
+export interface RequestApprovalOtpResponseData {
+  campaignNumber?: string;
+  otpExpiresAt: string;
+  otpResendAvailableAt: string;
+  approverEmailMasked: string;
+  otpAttemptsRemaining?: number;
+  otpSendsRemaining?: number;
 }
 
 export interface VerifyManagerOtpResponseData {

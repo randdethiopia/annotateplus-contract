@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheck, Users } from "lucide-react";
+import { Mail, ShieldCheck, Users } from "lucide-react";
 import { PanelSection } from "@/components/system/panel-section";
 import { parseAmount, type CompensationTerms } from "@/lib/campaign-math";
 import { formatEtb } from "@/lib/money";
@@ -78,13 +78,13 @@ export function ReviewSummary({
           {approver ? (
             <>
               <span className="font-semibold break-words text-slate-900">{approver.fullName}</span>
-              <span className="mt-1 block text-xs text-slate-500">
-                {approver.title}
-                <span className="mx-1.5 text-slate-300" aria-hidden>
-                  ·
+              <span className="mt-1 block text-xs break-words text-slate-500">{approver.title}</span>
+              {approver.emailMasked && (
+                <span className="mt-1 inline-flex max-w-full min-w-0 items-center gap-1 text-xs text-slate-500">
+                  <Mail className="size-3.5 shrink-0 text-slate-400" aria-hidden />
+                  <span className="font-mono break-all tabular-nums">{approver.emailMasked}</span>
                 </span>
-                <span className="font-mono tabular-nums">{approver.phoneMasked}</span>
-              </span>
+              )}
             </>
           ) : (
             <span className="text-slate-400">Not selected</span>
@@ -118,8 +118,16 @@ export function ReviewSummary({
       <div className="mt-8 flex items-start gap-3 border-l border-slate-300 py-1 pl-4">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />
         <p className="text-[15px] leading-relaxed text-pretty text-slate-500">
-          Upon clicking submit, AfroMessage will send a 25-minute OTP and capability link directly
-          to the manager&apos;s SIM to authorize this disbursement.
+          Submitting emails a secure approval link to{" "}
+          {approver?.emailMasked ? (
+            <span className="font-mono break-all text-slate-700 tabular-nums">
+              {approver.emailMasked}
+            </span>
+          ) : (
+            "the selected executive"
+          )}
+          . They review the campaign there and confirm with a 6-digit verification code sent to the
+          same inbox, valid for 25 minutes.
         </p>
       </div>
     </PanelSection>

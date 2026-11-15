@@ -32,9 +32,7 @@ function SectionBand({ children }: { children: ReactNode }) {
 }
 
 function ApprovalCard({ token, view }: { token: string; view: ApprovalViewDto }) {
-  const isAuthorized = view.status === "APPROVED_BY_MANAGER" || view.status === "DISBURSED";
-
-  if (isAuthorized) {
+  if (view.status !== "PENDING_APPROVAL") {
     return (
       <article className={APPROVAL_CARD}>
         <ApprovalHeader view={view} />

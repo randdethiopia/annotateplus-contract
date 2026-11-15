@@ -117,7 +117,7 @@ export function WizardFooter({
             {isReview
               ? hasDraft && !isSubmitting
                 ? "Retry Submission"
-                : "Lock Campaign & Dispatch Manager SMS"
+                : "Lock Campaign & Email Approver"
               : nextLabel}
             {!isSubmitting && <ArrowRight className="size-4" aria-hidden />}
           </Button>

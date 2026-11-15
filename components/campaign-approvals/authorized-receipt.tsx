@@ -4,6 +4,7 @@ import { formatEtb } from "@/lib/money";
 import type { ApprovalViewDto } from "@/types/backend";
 
 export function AuthorizedReceipt({ view }: { view: ApprovalViewDto }) {
+  const contact = view.approverEmailMasked || view.approverPhoneMasked;
 
   return (
     <div role="status" className="space-y-4 py-2 text-center">
@@ -24,8 +25,16 @@ export function AuthorizedReceipt({ view }: { view: ApprovalViewDto }) {
 
       <div className="space-y-1.5 text-sm text-pretty text-slate-500">
         <p>
-          Approved by <span className="font-medium text-slate-900">{view.approverName}</span> (
-          <span className="font-mono tabular">{view.approverPhoneMasked}</span>)
+          Approved by{" "}
+          <span className="font-medium text-slate-900">
+            {view.approverName ?? "the designated executive"}
+          </span>
+          {contact && (
+            <>
+              {" "}
+              (<span className="font-mono break-all tabular">{contact}</span>)
+            </>
+          )}
           {/* A reopened link on an older backend may carry no timestamp; inventing one would misstate the record. */}
           {view.approvedAt && (
             <>
