@@ -632,7 +632,8 @@ export interface CampaignWorkerItemDto {
   adjustmentReason?: string;
   netPayableEtb: number;
   status: CampaignWorkerStatus;
-  skipReason?: CampaignSkipReason;
+  skipReason?: CampaignSkipReason | string | null;
+  failureReason?: string | null;
 }
 
 export interface CampaignDetailsDto {
@@ -733,6 +734,7 @@ export interface ApprovalWorkerDto {
   workerName?: string;
   contractNumber?: string;
   bankName?: string;
+  maskedAccount?: string;
   /** Server-masked; rendered verbatim, never re-masked. */
   bankAccountMasked?: string;
   netPayableEtb?: number;

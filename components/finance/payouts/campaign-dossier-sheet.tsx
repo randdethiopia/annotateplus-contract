@@ -9,6 +9,7 @@ import {
   CreditCard,
   FileText,
   ListChecks,
+  RotateCcw,
   Users,
 } from "lucide-react";
 import { ContractPreviewPanel } from "@/components/finance/payouts/contract-preview-panel";
@@ -24,6 +25,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { isDisbursableWorker } from "@/lib/campaign-math";
 import { describeError } from "@/lib/describe-error";
 import { useCampaign } from "@/lib/hooks/use-campaigns";
 import { useTreasuryBalance } from "@/lib/hooks/use-payouts";
@@ -49,6 +51,8 @@ const SKIP_LABEL: Record<CampaignSkipReason, string> = {
   CONTRACT_NOT_PAYABLE: "Contract not payable",
   UNSUPPORTED_BANK: "Unsupported bank",
 };
+
+const FAILURE_FALLBACK = "Payout failed — ready to retry";
 
 interface WorkerStatusStyle {
   label: string;
@@ -119,8 +123,12 @@ function payableLabel(count: number): string {
   return `${count.toLocaleString()} ${count === 1 ? "worker" : "workers"}`;
 }
 
-function isPayable(worker: CampaignWorkerItemDto): boolean {
-  return worker.status === "APPROVED";
+function isKnownSkipReason(reason: string): reason is CampaignSkipReason {
+  return Object.hasOwn(SKIP_LABEL, reason);
+}
+
+function describeSkipReason(reason: string): string {
+  return isKnownSkipReason(reason) ? SKIP_LABEL[reason] : reason;
 }
 
 function WorkerStatusBadge({ status }: { status: CampaignWorkerStatus }) {
@@ -282,7 +290,9 @@ function WorkerRow({
   onPayNow: () => void;
   onViewContract: () => void;
 }) {
-  const payable = isPayable(worker) && !readOnly;
+  const payable = isDisbursableWorker(worker) && !readOnly;
+  const isRetry = worker.status === "FAILED";
+  const failureReason = worker.failureReason?.trim();
   const isMuted = worker.status === "SKIPPED" || worker.status === "DISBURSED";
   const checkboxId = `dossier-worker-${worker._id}`;
 
@@ -301,7 +311,7 @@ function WorkerRow({
         checked={isSelected}
         disabled={!payable || isDisbursing}
         onCheckedChange={(checked) => onToggle(checked === true)}
-        aria-label={`Select ${worker.workerName} for disbursement`}
+        aria-label={`Select ${worker.workerName} for ${isRetry ? "retry" : "disbursement"}`}
       />
 
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -323,7 +333,7 @@ function WorkerRow({
             <WorkerStatusBadge status={worker.status} />
             {worker.status === "SKIPPED" && worker.skipReason && (
               <span className="text-[11px] whitespace-nowrap text-amber-800">
-                {SKIP_LABEL[worker.skipReason]}
+                {describeSkipReason(worker.skipReason)}
               </span>
             )}
           </div>
@@ -340,6 +350,21 @@ function WorkerRow({
           </div>
 
           <CompensationDetail worker={worker} />
+
+          {isRetry && (
+            <p className="mt-2 flex min-w-0 items-start gap-1.5 border-l-2 border-rose-400 bg-rose-50/70 px-2.5 py-1.5 text-xs text-rose-700">
+              <AlertTriangle className="mt-px size-3.5 shrink-0 text-rose-600" aria-hidden />
+              <span className="min-w-0 wrap-anywhere">
+                {failureReason ? (
+                  <>
+                    <span className="font-semibold">Failed:</span> {failureReason}
+                  </>
+                ) : (
+                  FAILURE_FALLBACK
+                )}
+              </span>
+            </p>
+          )}
         </div>
 
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
@@ -374,8 +399,13 @@ function WorkerRow({
                 className="h-auto rounded-lg border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 shadow-none transition-colors hover:bg-slate-100"
                 onClick={onPayNow}
               >
-                Pay {formatEtb(worker.netPayableEtb)}
-                <ArrowRight className="size-3.5" aria-hidden />
+                {isRetry ? "Retry" : "Pay"}{" "}
+                <span className="font-mono tabular-nums">{formatEtb(worker.netPayableEtb)}</span>
+                {isRetry ? (
+                  <RotateCcw className="size-3.5" aria-hidden />
+                ) : (
+                  <ArrowRight className="size-3.5" aria-hidden />
+                )}
               </Button>
             )}
           </div>
@@ -426,7 +456,7 @@ export function CampaignDossierSheet({
   const selectedWorkerIds =
     selection.campaignId === campaignId ? selection.ids : EMPTY_SELECTION;
 
-  const payableWorkers = useMemo(() => workers.filter(isPayable), [workers]);
+  const payableWorkers = useMemo(() => workers.filter(isDisbursableWorker), [workers]);
 
   const selectedWorkers = useMemo(
     () => payableWorkers.filter((worker) => selectedWorkerIds.has(worker._id)),
@@ -450,7 +480,11 @@ export function CampaignDossierSheet({
   const canDisburse =
     campaign?.status === "APPROVED_BY_MANAGER" || campaign?.status === "PARTIALLY_DISBURSED";
   const showCommandBar = !!campaign && canDisburse && !viewingContract && payableWorkers.length > 0;
-  const showSettledDock = !!campaign && campaign.status === "DISBURSED" && !viewingContract;
+  const showSettledDock =
+    !!campaign &&
+    campaign.status === "DISBURSED" &&
+    !viewingContract &&
+    payableWorkers.length === 0;
 
   function updateSelection(apply: (previous: ReadonlySet<string>) => ReadonlySet<string>) {
     setSelection((prev) => ({

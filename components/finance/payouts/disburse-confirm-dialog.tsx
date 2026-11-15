@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { isDisbursableWorker } from "@/lib/campaign-math";
 import { useCampaign } from "@/lib/hooks/use-campaigns";
 import { formatEtb, sumEtb } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -93,7 +94,7 @@ export function DisburseConfirmDialog({
   const { data: detail } = useCampaign(token, open && campaign ? campaign._id : null);
 
   const targetWorkers = useMemo(() => {
-    const payable = (detail?.workers ?? []).filter((worker) => worker.status === "APPROVED");
+    const payable = (detail?.workers ?? []).filter(isDisbursableWorker);
     if (!workerIds || workerIds.length === 0) return payable;
     const wanted = new Set(workerIds);
     return payable.filter((worker) => wanted.has(worker._id));
@@ -106,6 +107,7 @@ export function DisburseConfirmDialog({
     ? sumEtb(targetWorkers.map((worker) => worker.netPayableEtb))
     : campaign?.totalAmount;
   const targetCount = hasDetail ? targetWorkers.length : (campaign?.totalWorkers ?? 0);
+  const retryCount = targetWorkers.filter((worker) => worker.status === "FAILED").length;
 
   const bankRoute = useMemo(() => {
     const banks = Array.from(
@@ -173,6 +175,12 @@ export function DisburseConfirmDialog({
                   label={isSubset ? "Selected Workers" : "Workers in This Release"}
                   value={targetCount.toLocaleString()}
                 />
+                {retryCount > 0 && (
+                  <BreakdownRow
+                    label="Retrying Failed Transfers"
+                    value={retryCount.toLocaleString()}
+                  />
+                )}
                 <BreakdownRow
                   label={isSubset ? "Amount for Selection" : "Required Campaign Budget"}
                   value={formatEtb(targetAmount)}

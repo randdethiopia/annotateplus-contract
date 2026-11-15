@@ -63,7 +63,9 @@ export function WorkerBreakdown({
                       <span className="mx-1.5 text-slate-300" aria-hidden>
                         ·
                       </span>
-                      <span className="font-mono tabular">{worker.bankAccountMasked ?? "—"}</span>
+                      <span className="font-mono tabular">
+                        {worker.maskedAccount ?? worker.bankAccountMasked ?? "—"}
+                      </span>
                     </p>
                   </div>
                   <p className="shrink-0 font-mono text-sm font-semibold text-slate-900 tabular">

@@ -2,8 +2,13 @@ import { normalizePhoneToLocal } from "@/lib/phone";
 import type {
   CampaignCompensationModel,
   CampaignTaskTierDto,
+  CampaignWorkerItemDto,
   WorkerCompensationRequestBody,
 } from "@/types/backend";
+
+export function isDisbursableWorker(worker: Pick<CampaignWorkerItemDto, "status">): boolean {
+  return worker.status === "APPROVED" || worker.status === "FAILED";
+}
 
 export const MAX_TASK_TIERS = 20;
 export const MAX_TIER_NAME_LENGTH = 100;
