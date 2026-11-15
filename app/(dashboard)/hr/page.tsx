@@ -2,6 +2,7 @@
 
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { CommandBar, statusFilterLabel, type QueueTab } from "@/components/system/command-bar";
+import { HrSubNav } from "@/components/hr/hr-sub-nav";
 import { MetricsStrip } from "@/components/system/metrics-strip";
 import { QueueShell } from "@/components/system/queue-shell";
 import { RESULTS_REGION_ID } from "@/components/system/workstation";
@@ -84,6 +85,8 @@ export default function HrPage() {
           </Button>
         </div>
       </div>
+
+      <HrSubNav />
 
       <MetricsStrip
         isLoading={kpis.isLoading}

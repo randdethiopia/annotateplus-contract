@@ -22,6 +22,7 @@ export const createContractSchema = z.object({
     .trim()
     .min(9, "Please enter a valid Ethiopian mobile number (e.g. 0911234567 or +251911234567)")
     .regex(/^(\+251|0)?(9|7)\d{8}$/, "Must be a valid Ethio Telecom or Safaricom mobile number"),
+  candidateId: z.string().optional(),
   contractNumber: z.string().optional(),
   ratePerTaskEtb: z.number().optional(),
   contractPdf: z.any().optional(),

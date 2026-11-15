@@ -1,3 +1,5 @@
+import type { ETHIOPIAN_REGIONS } from "@/lib/ethiopia";
+
 // ============================================================
 // Shared
 // ============================================================
@@ -333,6 +335,8 @@ export interface CreateContractRequestBody {
   phone: string;
   /** Id of a pre-vaulted agreement template; supplies the rate and clauses. */
   templateId: string;
+  /** Set when finance issued from the applicant pool rather than a typed number. */
+  candidateId?: string;
 }
 
 /** AfroMessage dispatch outcome for the invitation SMS. */
@@ -774,4 +778,109 @@ export interface RequestApprovalOtpResponseData {
 export interface VerifyManagerOtpResponseData {
   status?: CampaignStatus;
   approvedAt?: string;
+}
+
+// ============================================================
+// Public candidate application
+// ============================================================
+
+export type CandidateGender = "MALE" | "FEMALE";
+
+export type VulnerabilityStatus = "PWD" | "REFUGEE" | "IDP" | "RETURNEE" | "NONE";
+
+export type EthiopianRegion = (typeof ETHIOPIAN_REGIONS)[number];
+
+export interface PublicCandidateApplyDto {
+  firstName: string;
+  fatherName: string;
+  grandfatherName: string;
+  phone: string;
+  email?: string;
+  gender: CandidateGender;
+  age: number;
+  region: EthiopianRegion;
+  vulnerabilityStatus: VulnerabilityStatus;
+  willingToAttendTraining: boolean;
+  source?: string;
+  website_hp?: string;
+}
+
+export interface PublicCandidateApplyResponseData {
+  applicationId?: string;
+}
+
+export type CandidateStatus =
+  | "NEW"
+  | "SHORTLISTED"
+  | "CONTRACT_ISSUED"
+  | "REJECTED"
+  | "ARCHIVED";
+
+export interface CandidateItemDto {
+  _id: string;
+  fullName: string;
+  phone: string;
+  age: number;
+  gender: CandidateGender;
+  region: EthiopianRegion;
+  vulnerabilityStatus: VulnerabilityStatus;
+  status: CandidateStatus;
+  createdAt: string;
+  /** Absent on applications captured before source tracking shipped. */
+  source?: string;
+  willingToAttendTraining?: boolean;
+  /** Set once finance issues from this applicant. */
+  contractId?: string;
+  contractNumber?: string;
+}
+
+export interface CandidateStatusUpdateResponseData {
+  status?: CandidateStatus;
+}
+
+export interface CandidateListResponse {
+  items: CandidateItemDto[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface BulkIssueRequestBody {
+  candidateIds: string[];
+  templateId?: string;
+}
+
+export interface BulkIssueResponseData {
+  jobId: string;
+  totalRequested: number;
+  status: string;
+}
+
+export type BulkJobStatus = "PROCESSING" | "COMPLETED" | "FAILED";
+
+export interface BulkIssueSucceededItem {
+  candidateId: string;
+  candidateName: string;
+  phone: string;
+  contractId: string;
+  contractNumber: string;
+}
+
+export interface BulkIssueFailedItem {
+  candidateId: string;
+  candidateName: string;
+  phone: string;
+  error: string;
+}
+
+export interface BulkJobDetailDto {
+  jobId: string;
+  status: BulkJobStatus;
+  totalRequested: number;
+  processedCount: number;
+  successCount: number;
+  failedCount: number;
+  succeeded: BulkIssueSucceededItem[];
+  failed: BulkIssueFailedItem[];
+  error?: string;
 }

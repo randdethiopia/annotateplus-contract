@@ -24,6 +24,8 @@ import { useClampPage } from "@/lib/hooks/use-clamp-page";
 import { describeError } from "@/lib/describe-error";
 import { formatAgreementDate } from "@/lib/format-date";
 
+const CAMPAIGN_NOUN = { singular: "campaign", plural: "campaigns" };
+
 function TodayChip() {
   return (
     <span className="hidden min-w-40 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 sm:inline-flex">
@@ -171,8 +173,7 @@ function CampaignsWorkstation() {
           onPageChange={setPage}
           onLimitChange={setLimit}
           isFetching={isFetching}
-          noun="campaign"
-          nounPlural="campaigns"
+          noun={CAMPAIGN_NOUN}
         />
       )}
     </div>
