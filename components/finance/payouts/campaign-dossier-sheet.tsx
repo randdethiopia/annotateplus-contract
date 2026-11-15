@@ -25,7 +25,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { isDisbursableWorker } from "@/lib/campaign-math";
+import {
+  formatFailureReason,
+  isDisbursableWorker,
+  isPayoutFailureCode,
+} from "@/lib/campaign-math";
 import { describeError } from "@/lib/describe-error";
 import { useCampaign } from "@/lib/hooks/use-campaigns";
 import { useTreasuryBalance } from "@/lib/hooks/use-payouts";
@@ -355,12 +359,14 @@ function WorkerRow({
             <p className="mt-2 flex min-w-0 items-start gap-1.5 border-l-2 border-rose-400 bg-rose-50/70 px-2.5 py-1.5 text-xs text-rose-700">
               <AlertTriangle className="mt-px size-3.5 shrink-0 text-rose-600" aria-hidden />
               <span className="min-w-0 wrap-anywhere">
-                {failureReason ? (
+                {!failureReason ? (
+                  FAILURE_FALLBACK
+                ) : isPayoutFailureCode(failureReason) ? (
+                  formatFailureReason(failureReason)
+                ) : (
                   <>
                     <span className="font-semibold">Failed:</span> {failureReason}
                   </>
-                ) : (
-                  FAILURE_FALLBACK
                 )}
               </span>
             </p>

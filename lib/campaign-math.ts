@@ -10,6 +10,24 @@ export function isDisbursableWorker(worker: Pick<CampaignWorkerItemDto, "status"
   return worker.status === "APPROVED" || worker.status === "FAILED";
 }
 
+const PAYOUT_FAILURE_LABEL = {
+  PAYOUT_FAILED: "Bank transfer failed — ready to retry",
+  PAYOUT_BLOCKED: "Transfer blocked by Chapa — contact support or retry",
+  PAYOUT_REVERSED: "Transfer reversed — ready to retry",
+  NOT_DISPATCHED_BATCH_HALTED: "Batch paused before dispatch — ready to retry",
+} as const;
+
+type PayoutFailureCode = keyof typeof PAYOUT_FAILURE_LABEL;
+
+export function isPayoutFailureCode(reason: string): reason is PayoutFailureCode {
+  return Object.hasOwn(PAYOUT_FAILURE_LABEL, reason);
+}
+
+export function formatFailureReason(reason: string): string {
+  const trimmed = reason.trim();
+  return isPayoutFailureCode(trimmed) ? PAYOUT_FAILURE_LABEL[trimmed] : trimmed;
+}
+
 export const MAX_TASK_TIERS = 20;
 export const MAX_TIER_NAME_LENGTH = 100;
 

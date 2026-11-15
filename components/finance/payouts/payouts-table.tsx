@@ -2,6 +2,7 @@ import {
   PayoutItemBadge,
   PayoutItemDotLabel,
 } from "@/components/finance/payouts/payout-status";
+import { formatFailureReason } from "@/lib/campaign-math";
 import { formatEtb } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { PayoutItemDto } from "@/types/backend";
@@ -19,7 +20,11 @@ const COLUMNS = [
 
 function FailureReason({ item }: { item: PayoutItemDto }) {
   if (item.status !== "FAILED" || !item.failureReason) return null;
-  return <p className="mt-1 text-[11px] font-medium text-rose-700">{item.failureReason}</p>;
+  return (
+    <p className="mt-1 text-[11px] font-medium text-rose-700">
+      {formatFailureReason(item.failureReason)}
+    </p>
+  );
 }
 
 export function PayoutsTable({ items }: { items: PayoutItemDto[] }) {

@@ -19,8 +19,10 @@ import {
   CandidatesToolbar,
   type CandidateFilters,
 } from "@/components/hr/candidates/candidates-toolbar";
+import { RequirePermission } from "@/components/auth/require-permission";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/auth-context";
+import { CANDIDATE_POOL_PERMISSION, CANDIDATE_POOL_ROLES } from "@/lib/auth/candidate-access";
 import { useCandidateParams } from "@/lib/hooks/use-candidate-params";
 import {
   useCandidates,
@@ -57,7 +59,7 @@ function CopyApplyLinkButton() {
   );
 }
 
-export default function HrCandidatesPage() {
+function CandidatePoolWorkstation() {
   const { token } = useAuth();
   const {
     status,
@@ -271,5 +273,18 @@ export default function HrCandidatesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function HrCandidatesPage() {
+  return (
+    <RequirePermission
+      permission={CANDIDATE_POOL_PERMISSION}
+      roles={CANDIDATE_POOL_ROLES}
+      homeHref="/hr"
+      inset
+    >
+      <CandidatePoolWorkstation />
+    </RequirePermission>
   );
 }
