@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ShieldCheck } from "lucide-react";
 import { BrandLogo } from "@/components/branding/brand-logo";
-import { ApplyForm } from "./apply-form";
+import { ApplyGate } from "./apply-gate";
 
 const TITLE = "Annotator Recruitment Application | R&D Group";
 const DESCRIPTION =
@@ -54,7 +54,7 @@ export default async function ApplyPage({
           </p>
         </header>
 
-        <ApplyForm source={source} />
+        <ApplyGate source={source} />
 
         <p className="mt-6 text-center text-xs text-slate-400">
           R&amp;D Group &middot; Your information is used only for recruitment purposes.

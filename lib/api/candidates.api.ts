@@ -6,6 +6,8 @@ import type {
   CandidateStatusUpdateResponseData,
   PublicCandidateApplyDto,
   PublicCandidateApplyResponseData,
+  PublicIntakeStatusDto,
+  ReviewerIntakeStatusDto,
 } from "@/types/backend";
 
 export interface CandidateListParams {
@@ -43,6 +45,18 @@ export const candidatesApi = {
     api<PublicCandidateApplyResponseData>("/public/candidates/apply", {
       method: "POST",
       body: dto,
+    }),
+
+  getPublicIntakeStatus: () => api<PublicIntakeStatusDto>("/public/candidates/status"),
+
+  getReviewerIntakeStatus: (token: string) =>
+    api<ReviewerIntakeStatusDto>("/reviewer/candidates/intake-status", { token }),
+
+  setReviewerIntakeStatus: (token: string, isOpen: boolean) =>
+    api<ReviewerIntakeStatusDto>("/reviewer/candidates/intake-status", {
+      method: "POST",
+      token,
+      body: { isOpen },
     }),
 
   list: (token: string, params?: CandidateListParams) => {

@@ -469,6 +469,19 @@ export interface CandidateListResponse {
   limit: number;
 }
 
+/** GET /public/candidates/status — whether `/apply` accepts submissions. */
+export interface PublicIntakeStatusDto {
+  isOpen: boolean;
+  updatedAt: string | null;
+}
+
+/** GET|POST /reviewer/candidates/intake-status — HR/Admin view with the last actor. */
+export interface ReviewerIntakeStatusDto {
+  isOpen: boolean;
+  updatedAt: string | null;
+  updatedBy: { id: string; fullName: string } | null;
+}
+
 export interface BulkIssueRequestBody {
   candidateIds: string[];
   templateId?: string;
