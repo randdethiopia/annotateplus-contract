@@ -426,7 +426,10 @@ export default function HrDossierPage() {
           Full-bleed: the HR workspace runs on a top bar now, so there is no left
           rail to offset against. */}
       {showDecisionBar && (
-        <div className="bg-background/85 border-border fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur">
+        <div
+          data-fixed-bottom-bar
+          className="bg-background/85 border-border fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur"
+        >
           <div className="flex items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:px-10">
             <p className="text-muted-foreground mr-auto hidden text-sm sm:block">
               Verify the ID and bank details before deciding.
