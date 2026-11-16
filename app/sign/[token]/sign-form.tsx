@@ -469,7 +469,10 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
         Pinned action drawer. It stays a DOM descendant of <form>, so the native
         submit still works without a form="" association.
       */}
-      <div className="bg-card/95 border-border fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 pb-safe backdrop-blur-md">
+      <div
+        data-fixed-bottom-bar
+        className="bg-card/95 border-border fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 pb-safe backdrop-blur-md"
+      >
         <div className="mx-auto max-w-lg">
           <Button type="submit" size="xl" disabled={isPending} className="w-full font-bold">
             {isPending ? (

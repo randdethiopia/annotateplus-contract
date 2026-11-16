@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useBulkJobTracker } from "@/components/finance/bulk-job-tracker";
 import { SURFACE_CARD } from "@/components/system/surface";
 import { describeError } from "@/lib/describe-error";
 import { useBulkRemind } from "@/lib/hooks/use-finance";
@@ -30,27 +31,32 @@ export function BulkRemindBar({
   const [open, setOpen] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const { mutate: bulkRemind, isPending } = useBulkRemind(token);
+  const { trackReminderJob, isReminderJobRunning } = useBulkJobTracker();
 
   if (eligibleCount <= 0) return null;
 
   const batchSize = Math.min(BULK_REMIND_LIMIT, eligibleCount);
+  const isBusy = isPending || isReminderJobRunning;
 
   function handleConfirm() {
+    if (isBusy) return;
     bulkRemind(
       { allEligible: true, limit: BULK_REMIND_LIMIT },
       {
-        onSuccess: (result) => {
-          toast.success(
-            `Dispatched ${result.processedCount.toLocaleString()} reminders. (${result.skippedCount.toLocaleString()} skipped in cooldown).`
-          );
-          if (result.failures > 0) {
-            toast.error(
-              `${result.failures.toLocaleString()} reminders failed to dispatch and were not counted.`
-            );
-          }
+        onSuccess: (data) => {
           setOpen(false);
+          if (data.status === "COMPLETED" && data.totalTargeted === 0) {
+            toast.info("No eligible contracts required reminders.");
+            return;
+          }
+          trackReminderJob(data.jobId);
+          toast.info(
+            `Dispatching ${data.totalTargeted.toLocaleString()} SMS ${
+              data.totalTargeted === 1 ? "reminder" : "reminders"
+            } in the background...`
+          );
         },
-        onError: (err) => toast.error(describeError(err, "Bulk reminder dispatch failed")),
+        onError: (err) => toast.error(describeError(err, "Could not start the bulk reminder")),
       }
     );
   }
@@ -86,17 +92,20 @@ export function BulkRemindBar({
         <Button
           type="button"
           onClick={() => setOpen(true)}
-          disabled={isPending || !token}
-          aria-busy={isPending}
-          className="shrink-0"
+          disabled={isBusy || !token}
+          aria-busy={isBusy}
+          className="w-full shrink-0 sm:w-auto"
         >
-          {isPending ? (
+          {isBusy ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />
           ) : (
             <BellRing className="size-4" aria-hidden />
           )}
-          Send reminders to next {batchSize.toLocaleString()}{" "}
-          {batchSize === 1 ? "candidate" : "candidates"}
+          {isReminderJobRunning
+            ? "Sending in background…"
+            : `Send reminders to next ${batchSize.toLocaleString()} ${
+                batchSize === 1 ? "candidate" : "candidates"
+              }`}
         </Button>
       </section>
 
@@ -114,7 +123,7 @@ export function BulkRemindBar({
               You are about to dispatch SMS reminders to up to {batchSize.toLocaleString()}{" "}
               candidates who are awaiting submission and have not been reminded in the last 24
               hours. Each candidate will receive 1 single-segment SMS and enter a 24-hour
-              cooldown.
+              cooldown. Sending runs in the background — you will be notified when it finishes.
             </DialogDescription>
           </DialogHeader>
 
@@ -154,15 +163,13 @@ export function BulkRemindBar({
             >
               Cancel
             </Button>
-            <Button ref={confirmRef} type="button" onClick={handleConfirm} disabled={isPending}>
+            <Button ref={confirmRef} type="button" onClick={handleConfirm} disabled={isBusy}>
               {isPending ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden />
               ) : (
                 <BellRing className="size-4" aria-hidden />
               )}
-              {isPending
-                ? "Dispatching…"
-                : `Confirm & dispatch ${batchSize.toLocaleString()} SMS`}
+              {isPending ? "Starting…" : `Confirm & dispatch ${batchSize.toLocaleString()} SMS`}
             </Button>
           </DialogFooter>
         </DialogContent>

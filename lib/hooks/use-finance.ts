@@ -40,17 +40,29 @@ export function useFinanceSummary(token: string) {
   });
 }
 
+/**
+ * Only starts the job (202). Nothing has been sent when this resolves, so no
+ * lists are invalidated here — BulkJobTrackerProvider refreshes them once the
+ * job settles, keeping the eligible count truthful in the meantime.
+ */
 export function useBulkRemind(token: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (params: BulkRemindParams) => financeApi.bulkRemind(token, params),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["finance-contracts"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["finance-kpis"] });
-      queryClient.invalidateQueries({ queryKey: ["reviewer-contracts"] });
-      queryClient.invalidateQueries({ queryKey: ["reviewer-kpis"] });
-    },
+  });
+}
+
+export function useBulkReminderJobStatus(token: string, jobId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["finance-bulk-remind-job", token, jobId],
+    queryFn: () => financeApi.getBulkReminderJobStatus(token, jobId!),
+    enabled: !!token && !!jobId && enabled,
+    refetchInterval: (query) =>
+      query.state.data?.status === "PROCESSING" ? 2000 : false,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    retry: 2,
   });
 }
 

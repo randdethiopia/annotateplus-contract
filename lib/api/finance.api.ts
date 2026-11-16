@@ -6,8 +6,9 @@ import type {
   BulkIssueRequestBody,
   BulkIssueResponseData,
   BulkJobDetailDto,
+  BulkRemindJobStartDto,
   BulkRemindParams,
-  BulkRemindResult,
+  BulkReminderJobStatusDto,
   ContractStatus,
   CreateContractRequestBody,
   FinanceSummary,
@@ -110,12 +111,19 @@ export const financeApi = {
     });
   },
 
-  bulkRemind(token: string, params: BulkRemindParams): Promise<BulkRemindResult> {
-    return api<BulkRemindResult>("/finance/contracts/bulk-remind", {
+  bulkRemind(token: string, params: BulkRemindParams): Promise<BulkRemindJobStartDto> {
+    return api<BulkRemindJobStartDto>("/finance/contracts/bulk-remind", {
       method: "POST",
       token,
       body: params,
     });
+  },
+
+  getBulkReminderJobStatus(token: string, jobId: string): Promise<BulkReminderJobStatusDto> {
+    return api<BulkReminderJobStatusDto>(
+      `/finance/contracts/bulk-remind/${encodeURIComponent(jobId)}`,
+      { method: "GET", token }
+    );
   },
 
   getSealedDocumentPath(contractId: string): string {

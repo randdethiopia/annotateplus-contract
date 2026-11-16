@@ -363,11 +363,29 @@ export interface BulkRemindParams {
   limit?: number;
 }
 
-export interface BulkRemindResult {
+/**
+ * 202 from POST /finance/contracts/bulk-remind. Dispatch runs server-side;
+ * poll GET /finance/contracts/bulk-remind/:jobId for the outcome. A job that
+ * matched no contracts comes back already COMPLETED with `totalTargeted: 0`.
+ */
+export interface BulkRemindJobStartDto {
+  jobId: string;
+  totalTargeted: number;
+  status: "PROCESSING" | "COMPLETED";
+}
+
+export interface BulkReminderJobStatusDto {
+  jobId: string;
+  status: "PROCESSING" | "COMPLETED" | "FAILED";
   totalTargeted: number;
   processedCount: number;
+  sentCount: number;
   skippedCount: number;
-  failures: number;
+  failedCount: number;
+  error?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
