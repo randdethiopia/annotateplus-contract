@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Controller,
@@ -24,6 +24,7 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { candidatesApi } from "@/lib/api/candidates.api";
 import { describeError } from "@/lib/describe-error";
+import { PUBLIC_INTAKE_STATUS_KEY } from "@/lib/hooks/use-candidates";
 import {
   ETHIOPIAN_REGIONS,
   GENDER_OPTIONS,
@@ -45,7 +46,11 @@ import { ApplicationReceipt, type SubmittedApplication } from "./application-rec
 import { CARD_SURFACE, CONTROL, CONTROL_INVALID } from "./apply-controls";
 import { ChoiceField } from "./choice-field";
 import { Stepper } from "./stepper";
-import type { PublicCandidateApplyDto, ValidationIssue } from "@/types/backend";
+import type {
+  PublicCandidateApplyDto,
+  PublicIntakeStatusDto,
+  ValidationIssue,
+} from "@/types/backend";
 
 const ALERT_ID = "apply-submit-alert";
 const FORM_ID = "apply-form-card";
@@ -194,6 +199,7 @@ export function ApplyForm({ source }: { source: string }) {
     },
   });
 
+  const queryClient = useQueryClient();
   const { mutate: apply, isPending } = useMutation({
     mutationFn: candidatesApi.apply,
     retry: 0,
@@ -273,6 +279,15 @@ export function ApplyForm({ source }: { source: string }) {
             message: describeError(err, "We could not submit your application"),
           });
           toast.error("Submission failed. Please try again.");
+          return;
+        }
+
+        if (err.code === "INTAKE_CLOSED") {
+          queryClient.setQueryData<PublicIntakeStatusDto>(PUBLIC_INTAKE_STATUS_KEY, {
+            isOpen: false,
+            updatedAt: new Date().toISOString(),
+          });
+          queryClient.invalidateQueries({ queryKey: PUBLIC_INTAKE_STATUS_KEY });
           return;
         }
 

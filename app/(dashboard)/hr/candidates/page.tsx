@@ -11,6 +11,7 @@ import { QueueShell } from "@/components/system/queue-shell";
 import { RESULTS_REGION_ID, SEARCH_DEBOUNCE_MS } from "@/components/system/workstation";
 import { HrSubNav } from "@/components/hr/hr-sub-nav";
 import { CandidateMetrics } from "@/components/hr/candidates/candidate-metrics";
+import { IntakeStatusBar } from "@/components/hr/candidates/intake-status-bar";
 import {
   CandidatesTable,
   CandidatesTableSkeleton,
@@ -25,6 +26,7 @@ import { useCandidateParams } from "@/lib/hooks/use-candidate-params";
 import {
   useCandidates,
   useExportCandidatesCsv,
+  useReviewerIntakeStatus,
   useUpdateCandidateStatus,
 } from "@/lib/hooks/use-candidates";
 import { useClampPage } from "@/lib/hooks/use-clamp-page";
@@ -35,7 +37,7 @@ import type { CandidateStatus } from "@/types/backend";
 const CANDIDATE_NOUN = { singular: "applicant", plural: "applicants" };
 const EXPORT_TOAST_ID = "candidate-export";
 
-function CopyApplyLinkButton() {
+function CopyApplyLinkButton({ intakeClosed = false }: { intakeClosed?: boolean }) {
   async function copy() {
     const origin =
       process.env.NEXT_PUBLIC_APP_ORIGIN ??
@@ -43,7 +45,11 @@ function CopyApplyLinkButton() {
 
     try {
       await navigator.clipboard.writeText(`${origin}/apply`);
-      toast.success("Recruitment link copied to clipboard!");
+      if (intakeClosed) {
+        toast.warning("Link copied — note that public /apply is currently closed");
+      } else {
+        toast.success("Recruitment link copied to clipboard!");
+      }
     } catch {
       toast.error("Could not copy the link. Copy it from the address bar instead.");
     }
@@ -96,6 +102,9 @@ export default function HrCandidatesPage() {
     useUpdateCandidateStatus(token ?? "");
 
   const { mutate: exportCandidates, isPending: isExporting } = useExportCandidatesCsv(token ?? "");
+
+  const { data: intake } = useReviewerIntakeStatus(token ?? null);
+  const intakeClosed = intake?.isOpen === false;
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -183,12 +192,14 @@ export default function HrCandidatesPage() {
               )}
               Export Pool CSV
             </Button>
-            <CopyApplyLinkButton />
+            <CopyApplyLinkButton intakeClosed={intakeClosed} />
           </>
         }
       />
 
       <HrSubNav />
+
+      <IntakeStatusBar token={token ?? null} />
 
       <CandidateMetrics items={items} total={total} isLoading={isPending || isCorrecting} />
 
@@ -239,7 +250,7 @@ export default function HrCandidatesPage() {
                     Reset filters
                   </Button>
                 ) : (
-                  <CopyApplyLinkButton />
+                  <CopyApplyLinkButton intakeClosed={intakeClosed} />
                 )
               }
             />

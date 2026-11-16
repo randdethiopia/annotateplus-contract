@@ -13,7 +13,61 @@ import {
   type CandidateListParams,
 } from "@/lib/api/candidates.api";
 import { describeError } from "@/lib/describe-error";
-import type { CandidateStatus } from "@/types/backend";
+import type {
+  CandidateStatus,
+  PublicIntakeStatusDto,
+  ReviewerIntakeStatusDto,
+} from "@/types/backend";
+
+export const PUBLIC_INTAKE_STATUS_KEY = ["candidates-intake", "public"] as const;
+
+export function reviewerIntakeStatusKey(token: string | null) {
+  return ["candidates-intake", "reviewer", token] as const;
+}
+
+/** `/apply` gate — always revalidated on mount so a stale tab never shows an open form. */
+export function usePublicIntakeStatus() {
+  return useQuery({
+    queryKey: PUBLIC_INTAKE_STATUS_KEY,
+    queryFn: candidatesApi.getPublicIntakeStatus,
+    staleTime: 0,
+    retry: 1,
+  });
+}
+
+export function useReviewerIntakeStatus(token: string | null) {
+  return useQuery({
+    queryKey: reviewerIntakeStatusKey(token),
+    queryFn: () => candidatesApi.getReviewerIntakeStatus(token!),
+    enabled: Boolean(token),
+    staleTime: 30_000,
+  });
+}
+
+export function useSetReviewerIntakeStatus(token: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (isOpen: boolean) => candidatesApi.setReviewerIntakeStatus(token, isOpen),
+    retry: 0,
+    onSuccess: (data) => {
+      queryClient.setQueryData<ReviewerIntakeStatusDto>(reviewerIntakeStatusKey(token), data);
+      queryClient.setQueryData<PublicIntakeStatusDto>(PUBLIC_INTAKE_STATUS_KEY, {
+        isOpen: data.isOpen,
+        updatedAt: data.updatedAt,
+      });
+      queryClient.invalidateQueries({ queryKey: ["candidates-intake"] });
+      toast.success(
+        data.isOpen
+          ? "Public intake activated — /apply is accepting applications"
+          : "Public intake closed — /apply now shows the closed notice"
+      );
+    },
+    onError: (err) => {
+      console.error("Intake status update failed", err);
+      toast.error(describeError(err, "Could not update public intake status"));
+    },
+  });
+}
 
 export function useCandidates(token: string | null, filters?: CandidateListParams) {
   return useQuery({
