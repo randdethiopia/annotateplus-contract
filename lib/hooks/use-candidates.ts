@@ -115,3 +115,9 @@ export function useExportCandidatesCsv(token: string) {
     mutationFn: (params: CandidateExportParams) => candidatesApi.exportCsv(token, params),
   });
 }
+
+export function useExportSignedCandidatesCsv(token: string) {
+  return useMutation({
+    mutationFn: () => candidatesApi.exportSignedCsv(token),
+  });
+}
