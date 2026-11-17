@@ -83,4 +83,10 @@ export const candidatesApi = {
     const today = new Date().toISOString().slice(0, 10);
     saveBlob(blob, `candidates_export_${today}.csv`);
   },
+
+  async exportSignedCsv(token: string): Promise<void> {
+    const blob = await apiBlob("/reviewer/candidates/export-signed", token);
+    const today = new Date().toISOString().slice(0, 10);
+    saveBlob(blob, `signed_workers_export_${today}.csv`);
+  },
 };
