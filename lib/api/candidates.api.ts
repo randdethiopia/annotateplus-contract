@@ -40,6 +40,12 @@ export type CandidateExportParams = Pick<
   "status" | "search" | "region" | "vulnerabilityStatus"
 >;
 
+/** Inclusive `YYYY-MM-DD` bounds on the contract signing date. */
+export interface SignedExportParams {
+  signedFrom?: string;
+  signedTo?: string;
+}
+
 export const candidatesApi = {
   apply: (dto: PublicCandidateApplyDto) =>
     api<PublicCandidateApplyResponseData>("/public/candidates/apply", {
@@ -84,8 +90,15 @@ export const candidatesApi = {
     saveBlob(blob, `candidates_export_${today}.csv`);
   },
 
-  async exportSignedCsv(token: string): Promise<void> {
-    const blob = await apiBlob("/reviewer/candidates/export-signed", token);
+  async exportSignedCsv(token: string, params: SignedExportParams = {}): Promise<void> {
+    const query = new URLSearchParams();
+    if (params.signedFrom) query.set("signedFrom", params.signedFrom);
+    if (params.signedTo) query.set("signedTo", params.signedTo);
+    const qs = query.toString();
+    const blob = await apiBlob(
+      qs ? `/reviewer/candidates/export-signed?${qs}` : "/reviewer/candidates/export-signed",
+      token
+    );
     const today = new Date().toISOString().slice(0, 10);
     saveBlob(blob, `signed_workers_export_${today}.csv`);
   },

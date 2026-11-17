@@ -11,6 +11,7 @@ import {
   candidatesApi,
   type CandidateExportParams,
   type CandidateListParams,
+  type SignedExportParams,
 } from "@/lib/api/candidates.api";
 import { describeError } from "@/lib/describe-error";
 import type {
@@ -118,6 +119,7 @@ export function useExportCandidatesCsv(token: string) {
 
 export function useExportSignedCandidatesCsv(token: string) {
   return useMutation({
-    mutationFn: () => candidatesApi.exportSignedCsv(token),
+    mutationFn: (params: SignedExportParams = {}) =>
+      candidatesApi.exportSignedCsv(token, params),
   });
 }

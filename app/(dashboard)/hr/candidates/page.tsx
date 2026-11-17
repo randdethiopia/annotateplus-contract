@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Download,
-  FileCheck,
   Link2,
   Loader2,
   RefreshCw,
@@ -34,7 +33,6 @@ import { useCandidateParams } from "@/lib/hooks/use-candidate-params";
 import {
   useCandidates,
   useExportCandidatesCsv,
-  useExportSignedCandidatesCsv,
   useReviewerIntakeStatus,
   useUpdateCandidateStatus,
 } from "@/lib/hooks/use-candidates";
@@ -45,7 +43,6 @@ import type { CandidateStatus } from "@/types/backend";
 
 const CANDIDATE_NOUN = { singular: "applicant", plural: "applicants" };
 const EXPORT_TOAST_ID = "candidate-export";
-const EXPORT_SIGNED_TOAST_ID = "candidate-export-signed";
 
 function CopyApplyLinkButton({ intakeClosed = false }: { intakeClosed?: boolean }) {
   async function copy() {
@@ -112,8 +109,6 @@ export default function HrCandidatesPage() {
     useUpdateCandidateStatus(token ?? "");
 
   const { mutate: exportCandidates, isPending: isExporting } = useExportCandidatesCsv(token ?? "");
-  const { mutate: exportSignedCandidates, isPending: isExportingSigned } =
-    useExportSignedCandidatesCsv(token ?? "");
 
   const { data: intake } = useReviewerIntakeStatus(token ?? null);
   const intakeClosed = intake?.isOpen === false;
@@ -170,19 +165,6 @@ export default function HrCandidatesPage() {
     );
   }
 
-  function handleExportSigned() {
-    toast.loading("Exporting signed workers...", { id: EXPORT_SIGNED_TOAST_ID });
-    exportSignedCandidates(undefined, {
-      onSuccess: () => toast.success("Signed workers export complete!", { id: EXPORT_SIGNED_TOAST_ID }),
-      onError: (err) => {
-        console.error("Signed workers export failed", err);
-        toast.error(describeError(err, "Failed to export signed workers. Please try again."), {
-          id: EXPORT_SIGNED_TOAST_ID,
-        });
-      },
-    });
-  }
-
   function handleUpdateStatus(id: string, next: CandidateStatus) {
     updateStatus({ id, status: next });
   }
@@ -216,19 +198,6 @@ export default function HrCandidatesPage() {
                 <Download className="size-4" aria-hidden />
               )}
               Export Pool CSV
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleExportSigned}
-              disabled={isExportingSigned || !token}
-            >
-              {isExportingSigned ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <FileCheck className="size-4" aria-hidden />
-              )}
-              Export Signed CSV
             </Button>
             <CopyApplyLinkButton intakeClosed={intakeClosed} />
           </>
