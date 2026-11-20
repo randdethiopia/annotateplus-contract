@@ -18,18 +18,13 @@ export function RejectionFeedbackCard({
   const isLastChance = attemptsRemaining <= 1;
 
   return (
-    <div className="border-destructive bg-card overflow-hidden rounded-2xl border-l-4 shadow-xs">
-      <div className="bg-destructive-soft flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+    <section className="border-destructive space-y-3 border-l-2 py-1 pl-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-2.5">
           <AlertTriangle className="text-destructive mt-0.5 size-5 shrink-0" aria-hidden />
-          <div>
-            <h2 className="text-base font-bold text-red-900">
-              Action required — we need a new submission
-            </h2>
-            <p className="font-ethiopic mt-0.5 text-sm text-red-800/80">
-              እርምጃ ያስፈልጋል — እንደገና ማስገባት ይኖርብዎታል
-            </p>
-          </div>
+          <h2 className="text-base font-bold text-red-900">
+            Action required — we need a new submission
+          </h2>
         </div>
         <span
           className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
@@ -42,31 +37,20 @@ export function RejectionFeedbackCard({
         </span>
       </div>
 
-      <div className="space-y-3 px-5 py-4">
-        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-[11px] font-semibold tracking-wide text-red-800 uppercase">
-          <span className="bg-destructive size-1.5 rounded-full" aria-hidden />
-          {categoryLabel}
+      <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-[11px] font-semibold tracking-wide text-red-800 uppercase">
+        <span className="bg-destructive size-1.5 rounded-full" aria-hidden />
+        {categoryLabel}
+      </span>
+
+      <p className="text-sm font-medium text-slate-900">{feedback.reasonEnglish}</p>
+
+      <p className="flex items-start gap-2 text-xs text-slate-600">
+        <Camera className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+        <span>
+          Your details below are already filled in from last time — you only need to replace
+          the photos and submit again.
         </span>
-
-        <div className="space-y-2">
-          <p className="bg-surface-subtle text-foreground rounded-xl p-3.5 text-sm font-medium">
-            {feedback.reasonEnglish}
-          </p>
-          {feedback.reasonAmharic && (
-            <p className="font-ethiopic bg-surface-subtle text-foreground rounded-xl p-3.5 text-sm font-medium">
-              {feedback.reasonAmharic}
-            </p>
-          )}
-        </div>
-
-        <p className="text-muted-foreground flex items-start gap-2 text-xs">
-          <Camera className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          <span>
-            Your details below are already filled in from last time — you only need to replace
-            the photos and submit again.
-          </span>
-        </p>
-      </div>
-    </div>
+      </p>
+    </section>
   );
 }

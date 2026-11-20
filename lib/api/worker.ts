@@ -5,10 +5,17 @@ import { api, apiBlob } from "@/lib/api/client";
 import { uploadViaPresign } from "@/lib/api/upload";
 import { saveBlob } from "@/lib/save-blob";
 import type {
+  ContractStatus,
   WorkerContractViewDto,
   WorkerSubmitPayload,
   WorkerSubmitResponseData,
 } from "@/types/backend";
+
+const POLLED_STATUSES: ReadonlySet<ContractStatus> = new Set<ContractStatus>([
+  "PENDING_REVIEW",
+  "APPROVED",
+  "PDF_GENERATION_FAILED",
+]);
 
 export function useWorkerContract(token: string) {
   return useQuery({
@@ -17,8 +24,10 @@ export function useWorkerContract(token: string) {
     enabled: !!token,
     retry: false,
     // Poll politely only while the worker is waiting on a human decision.
-    refetchInterval: (query) =>
-      query.state.data?.status === "PENDING_REVIEW" ? 15_000 : false,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && POLLED_STATUSES.has(status) ? 15_000 : false;
+    },
   });
 }
 
