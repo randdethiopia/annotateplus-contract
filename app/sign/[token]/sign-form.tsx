@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm, useWatch, type Control } from "react-hook-form";
-import { Landmark, Loader2, PenLine, ScrollText, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,7 +28,7 @@ export interface SignFormProps {
   requireNewPhotos?: boolean;
 }
 
-const CARD = "bg-card space-y-5 rounded-2xl p-5 shadow-xs";
+const CARD = "pt-8 border-t border-slate-200/80 space-y-5";
 
 /**
  * Submit order. The scroll-to-first-error handler walks this, so it must match
@@ -48,37 +48,20 @@ const FIELD_ORDER: (keyof WorkerSubmitInput)[] = [
 
 function SectionHeading({
   step,
-  icon: Icon,
   title,
-  titleAmharic,
   description,
 }: {
   step: number;
-  icon: typeof UserRound;
   title: string;
-  titleAmharic?: string;
   description?: string;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <span
-        className="bg-action-soft text-action flex size-9 shrink-0 items-center justify-center rounded-xl"
-        aria-hidden
-      >
-        <Icon className="size-4.5" />
-      </span>
-      <div className="min-w-0">
-        <h2 className="text-foreground text-base font-semibold tracking-tight">
-          <span className="text-muted-foreground mr-1.5 font-mono text-sm">{step}.</span>
-          {title}
-          {titleAmharic && (
-            <span className="font-ethiopic text-muted-foreground ml-2 text-sm font-normal">
-              {titleAmharic}
-            </span>
-          )}
-        </h2>
-        {description && <p className="text-muted-foreground mt-0.5 text-sm">{description}</p>}
-      </div>
+    <div className="min-w-0">
+      <h2 className="text-base font-semibold tracking-tight text-slate-900">
+        <span className="tabular mr-2 font-mono text-sm text-slate-400">{step}.</span>
+        {title}
+      </h2>
+      {description && <p className="mt-1 text-sm text-slate-600">{description}</p>}
     </div>
   );
 }
@@ -93,19 +76,39 @@ function SignaturePreview({ control }: { control: Control<WorkerSubmitInput> }) 
   const trimmed = name?.trim();
 
   return (
-    <div className="bg-surface-subtle rounded-xl px-4 py-3">
-      <p className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
-        {SIGN_COPY.signaturePreview.en}
-      </p>
+    <div className="pt-2">
       <p
         className={cn(
-          "font-signature mt-1 truncate text-3xl leading-tight",
-          trimmed ? "text-foreground" : "text-muted-foreground/50"
+          "font-signature truncate border-b border-slate-300 pb-1 text-3xl leading-tight",
+          trimmed ? "text-slate-900" : "text-slate-400"
         )}
         aria-live="polite"
       >
         {trimmed || "Your name"}
       </p>
+      <p className="mt-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+        {SIGN_COPY.signaturePreview}
+      </p>
+    </div>
+  );
+}
+
+function SigningAs({ control }: { control: Control<WorkerSubmitInput> }) {
+  const name = useWatch({ control, name: "fullNameEnglish" })?.trim();
+
+  return (
+    <div className="hidden min-w-0 sm:block">
+      {name ? (
+        <p className="flex min-w-0 items-baseline gap-2 text-xs text-slate-500">
+          <span className="shrink-0">{SIGN_COPY.signingAs}</span>
+          <span className="font-signature truncate text-2xl leading-none text-slate-900">
+            {name}
+          </span>
+        </p>
+      ) : (
+        <p className="text-sm font-medium text-slate-900">{SIGN_COPY.notSignedYet}</p>
+      )}
+      <p className="mt-1 truncate text-xs text-slate-500">{SIGN_COPY.submitNote}</p>
     </div>
   );
 }
@@ -221,14 +224,12 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
     <form
       onSubmit={handleSubmit(onSubmit, scrollToFirstError)}
       noValidate
-      className="space-y-5"
+      className="space-y-8"
     >
       <section className={CARD}>
         <SectionHeading
           step={1}
-          icon={UserRound}
-          title={SIGN_COPY.yourDetails.en}
-          titleAmharic={SIGN_COPY.yourDetails.am}
+          title={SIGN_COPY.yourDetails}
           description={
             requireNewPhotos
               ? "Check your information below, then re-upload clear photos of your Fayda ID."
@@ -239,7 +240,7 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
         <div className="space-y-4">
           <Field
             id="fullNameEnglish"
-            label={SIGN_COPY.fullNameEnglish.en}
+            label={SIGN_COPY.fullNameEnglish}
             required
             error={errors.fullNameEnglish?.message}
           >
@@ -254,8 +255,7 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
 
           <Field
             id="fullNameAmharic"
-            label={SIGN_COPY.fullNameAmharic.en}
-            labelAmharic={SIGN_COPY.fullNameAmharic.am}
+            label={SIGN_COPY.fullNameAmharic}
             required
             error={errors.fullNameAmharic?.message}
           >
@@ -269,10 +269,9 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
 
           <Field
             id="residenceLocation"
-            label={SIGN_COPY.residence.en}
-            labelAmharic={SIGN_COPY.residence.am}
+            label={SIGN_COPY.residence}
             required
-            hint={SIGN_COPY.residenceHint.en}
+            hint={SIGN_COPY.residenceHint}
             error={errors.residenceLocation?.message}
           >
             <Input
@@ -288,9 +287,7 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
       <section className={CARD}>
         <SectionHeading
           step={2}
-          icon={ShieldCheck}
-          title={SIGN_COPY.faydaId.en}
-          titleAmharic={SIGN_COPY.faydaId.am}
+          title={SIGN_COPY.faydaId}
           description="Photograph both sides on a flat surface in good light. All four corners must be visible and the text readable."
         />
 
@@ -301,8 +298,7 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
             render={({ field }) => (
               <IdPhotoField
                 id="faydaFront"
-                label={SIGN_COPY.idFront.en}
-                labelAmharic={SIGN_COPY.idFront.am}
+                label={SIGN_COPY.idFront}
                 value={field.value ?? null}
                 onChange={field.onChange}
                 error={errors.faydaFront?.message}
@@ -316,8 +312,7 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
             render={({ field }) => (
               <IdPhotoField
                 id="faydaBack"
-                label={SIGN_COPY.idBack.en}
-                labelAmharic={SIGN_COPY.idBack.am}
+                label={SIGN_COPY.idBack}
                 value={field.value ?? null}
                 onChange={field.onChange}
                 error={errors.faydaBack?.message}
@@ -331,17 +326,14 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
       <section className={CARD}>
         <SectionHeading
           step={3}
-          icon={Landmark}
-          title={SIGN_COPY.paymentDetails.en}
-          titleAmharic={SIGN_COPY.paymentDetails.am}
+          title={SIGN_COPY.paymentDetails}
           description="We pay you into this account. Double-check the number — a wrong digit delays payment."
         />
 
         <div className="space-y-4">
           <Field
             id="bankName"
-            label={SIGN_COPY.bankName.en}
-            labelAmharic={SIGN_COPY.bankName.am}
+            label={SIGN_COPY.bankName}
             required
             error={errors.bankName?.message}
           >
@@ -367,8 +359,7 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
 
           <Field
             id="bankAccountHolderName"
-            label={SIGN_COPY.accountHolder.en}
-            labelAmharic={SIGN_COPY.accountHolder.am}
+            label={SIGN_COPY.accountHolder}
             required
             error={errors.bankAccountHolderName?.message}
           >
@@ -382,8 +373,7 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
 
           <Field
             id="bankAccountNumber"
-            label={SIGN_COPY.accountNumber.en}
-            labelAmharic={SIGN_COPY.accountNumber.am}
+            label={SIGN_COPY.accountNumber}
             required
             error={errors.bankAccountNumber?.message}
             hint="Digits only, exactly as printed on your passbook or bank app."
@@ -403,14 +393,9 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
       </section>
 
       <section className={CARD}>
-        <SectionHeading
-          step={4}
-          icon={PenLine}
-          title={SIGN_COPY.declaration.en}
-          titleAmharic={SIGN_COPY.declaration.am}
-        />
+        <SectionHeading step={4} title={SIGN_COPY.declaration} />
 
-        <div className="space-y-3">
+        <div className="space-y-5">
           <Controller
             control={control}
             name="agreedToTerms"
@@ -419,12 +404,12 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
                 <label
                   htmlFor="agreedToTerms"
                   className={cn(
-                    "flex cursor-pointer items-start gap-3.5 rounded-xl p-3.5 transition-colors",
+                    "-mx-3 flex cursor-pointer items-start gap-3.5 rounded-lg p-3 transition-colors",
                     // Green on consent: the one moment in the flow that is an
                     // affirmation rather than an action.
                     field.value
                       ? "bg-[#69B34C]/5 ring-2 ring-[#69B34C]/30"
-                      : "bg-surface-subtle hover:bg-muted"
+                      : "hover:bg-slate-100"
                   )}
                 >
                   <Checkbox
@@ -434,13 +419,8 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
                     className="mt-0.5"
                     aria-invalid={!!errors.agreedToTerms}
                   />
-                  <span className="min-w-0">
-                    <span className="text-foreground block text-sm font-medium">
-                      {SIGN_COPY.consent.en}
-                    </span>
-                    <span className="font-ethiopic text-muted-foreground mt-1 block text-sm">
-                      {SIGN_COPY.consent.am}
-                    </span>
+                  <span className="min-w-0 text-sm font-medium text-slate-900">
+                    {SIGN_COPY.consent}
                   </span>
                 </label>
                 {errors.agreedToTerms && (
@@ -459,7 +439,7 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
       {retryAfter && (
         <p
           role="alert"
-          className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
+          className="border-l-2 border-amber-500 py-1 pl-4 text-sm font-medium text-amber-900"
         >
           Too many attempts. Please wait {retryAfter} seconds before trying again.
         </p>
@@ -471,16 +451,29 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
       */}
       <div
         data-fixed-bottom-bar
-        className="bg-card/95 border-border fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 pb-safe backdrop-blur-md"
+        className="bg-background fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 px-4 pt-3 pb-safe"
       >
-        <div className="mx-auto max-w-lg">
-          <Button type="submit" size="xl" disabled={isPending} className="w-full font-bold">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-6">
+          <SigningAs control={control} />
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="group h-12 w-full shrink-0 rounded-lg px-6 text-sm font-semibold sm:w-auto"
+          >
             {isPending ? (
-              <Loader2 className="size-5 animate-spin" />
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                Submitting…
+              </>
             ) : (
-              <ScrollText className="size-5" />
+              <>
+                {SIGN_COPY.submit}
+                <ArrowRight
+                  className="size-4 transition-transform motion-safe:group-hover:translate-x-0.5"
+                  aria-hidden
+                />
+              </>
             )}
-            {isPending ? "Submitting…" : SIGN_COPY.submit.en}
           </Button>
         </div>
       </div>
