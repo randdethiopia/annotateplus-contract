@@ -96,7 +96,7 @@ function buildTimeline(dossier: ContractDossierDto): TimelineEvent[] {
     events.push({
       key: "expired",
       title: "Signing link expired",
-      detail: "The 30-day signing window elapsed",
+      detail: "The signing window elapsed before submission",
       at: dossier.expiresAt,
     });
   }

@@ -4,7 +4,6 @@ import { CalendarX } from "lucide-react";
 import { RenewContractButton } from "@/components/contracts/renew-contract-button";
 import { formatAgreementDate } from "@/lib/format-date";
 import { MAX_REMINDERS } from "@/lib/reminder-utils";
-import { RENEWAL_DAYS } from "@/lib/renew-utils";
 import type { ContractDossierDto } from "@/types/backend";
 
 /**
@@ -46,8 +45,8 @@ export function ExpiredLinkBanner({
             )}
           </h2>
           <p className="max-w-prose text-sm text-amber-900/80">
-            The candidate was unable to complete signing within {RENEWAL_DAYS} days. No
-            documents have been submitted yet.
+            The signing deadline for this invitation has passed. No documents have been
+            submitted yet.
             {remindersSent > 0 &&
               ` ${remindersSent} of ${MAX_REMINDERS} reminders were sent before the window closed.`}
           </p>

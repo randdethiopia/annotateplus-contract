@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Loader2 } from "lucide-react";
+import { CalendarX, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,15 +16,17 @@ import { ContractDocument } from "@/components/contracts/contract-document";
 import { SealedPdfPreview } from "@/components/contracts/sealed-pdf-preview";
 import { CopyValueButton } from "@/components/contracts/copy-value-button";
 import { RemindButton } from "@/components/contracts/remind-button";
+import { RenewContractButton } from "@/components/contracts/renew-contract-button";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useDownloadFinanceDocument } from "@/lib/hooks/use-finance";
 import { isRemindable, MAX_REMINDERS } from "@/lib/reminder-utils";
+import { isRenewable } from "@/lib/renew-utils";
 import { canFinanceDownload } from "@/lib/status-actions";
 import { formatAgreementDate, formatSignedDateTime } from "@/lib/format-date";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import { describeError } from "@/lib/describe-error";
 import { cn } from "@/lib/utils";
-import type { FinanceContractListItemDto } from "@/types/backend";
+import type { FinanceContractListItemDto, RenewContractResponse } from "@/types/backend";
 
 function Row({
   label,
@@ -55,18 +57,19 @@ function Row({
   );
 }
 
-export function FinanceDetailSheet({
-  contract,
-  onOpenChange,
-}: {
+interface FinanceDetailSheetProps {
   contract: FinanceContractListItemDto | null;
   onOpenChange: (open: boolean) => void;
-}) {
+  onRenewed?: (data: RenewContractResponse) => void;
+}
+
+export function FinanceDetailSheet({ contract, onOpenChange, onRenewed }: FinanceDetailSheetProps) {
   const { token } = useAuth();
   const { mutate: download, isPending } = useDownloadFinanceDocument(token ?? "");
 
   const showSealedPdf =
     !!contract && canFinanceDownload(contract.status) && contract.hasSealedDocument;
+  const showExpiredNotice = !!contract && isRenewable(contract);
 
   function handleDownload() {
     if (!contract) return;
@@ -101,6 +104,39 @@ export function FinanceDetailSheet({
             <div className="space-y-5 px-5 pb-6">
               {contract.status === "SIGNED" && (
                 <SignedBanner documentHash={contract.documentHash} />
+              )}
+
+              {showExpiredNotice && (
+                <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-amber-50 p-4">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <CalendarX className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-amber-900">
+                        {contract.expiresAt ? (
+                          <>
+                            Signing link expired on{" "}
+                            <time dateTime={contract.expiresAt}>
+                              {formatAgreementDate(contract.expiresAt)}
+                            </time>
+                          </>
+                        ) : (
+                          "Signing link expired"
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-sm text-amber-800/80">
+                        The signing deadline for this invitation has passed.
+                      </p>
+                    </div>
+                  </div>
+                  <RenewContractButton
+                    contract={contract}
+                    surface="finance"
+                    appearance="primary"
+                    candidateName={contract.workerName}
+                    onRenewed={onRenewed}
+                    className="shrink-0"
+                  />
+                </div>
               )}
 
               <div className="bg-card grid grid-cols-2 gap-4 rounded-2xl p-4 shadow-xs">

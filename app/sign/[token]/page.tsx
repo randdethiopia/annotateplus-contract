@@ -28,6 +28,11 @@ import type { ContractStatus, WorkerContractViewDto } from "@/types/backend";
 
 const PAGE = "mx-auto max-w-2xl space-y-10 px-4 py-8 pb-32";
 
+function hasDeadlinePassed(expiresAt: string | undefined): boolean {
+  const deadline = expiresAt ? Date.parse(expiresAt) : NaN;
+  return Number.isFinite(deadline) && deadline <= Date.now();
+}
+
 function SignHeader({
   contractNumber,
   ratePerTaskEtb,
@@ -105,7 +110,7 @@ function ActionFlow({
 
 export default function SignPage() {
   const { token } = useParams<{ token: string }>();
-  const { data: contract, isLoading, isError, error } = useWorkerContract(token);
+  const { data: contract, isLoading, error } = useWorkerContract(token);
   const { mutate: downloadSigned, isPending: isDownloading } = useDownloadSignedContract(token);
 
   if (isLoading) {
@@ -117,8 +122,9 @@ export default function SignPage() {
     );
   }
 
-  if (isError || !contract) {
+  if (!contract) {
     const status = error instanceof ApiError ? error.status : undefined;
+    const isInvalidLink = status === 401 || status === 403;
     return (
       <div className="bg-background min-h-screen">
         <div className={PAGE}>
@@ -130,10 +136,10 @@ export default function SignPage() {
               <AlertTriangle className="size-7" />
             </span>
             <h1 className="text-lg font-bold tracking-tight text-balance text-slate-900">
-              {status === 401 ? "This link is no longer valid" : "Something went wrong"}
+              {isInvalidLink ? "This link is no longer valid" : "Something went wrong"}
             </h1>
             <p className="mx-auto mt-2.5 max-w-md text-sm text-pretty text-slate-600">
-              {status === 401
+              {isInvalidLink
                 ? "This signing link is unknown, expired, or incomplete. Please contact HR for a new one."
                 : error instanceof ApiError
                   ? error.message
@@ -156,6 +162,7 @@ export default function SignPage() {
   }
 
   const canSubmit = canWorkerSubmit(contract.status);
+  const deadlinePassed = canSubmit && hasDeadlinePassed(contract.expiresAt);
   const isPreparingCopy =
     contract.status === "APPROVED" || contract.status === "PDF_GENERATION_FAILED";
 
@@ -165,12 +172,12 @@ export default function SignPage() {
         <SignHeader
           contractNumber={contract.contractNumber}
           ratePerTaskEtb={contract.ratePerTaskEtb}
-          status={contract.status}
+          status={deadlinePassed ? "EXPIRED" : contract.status}
         />
 
         {contract.status === "INVITED" && <InvitedLoadingScreen />}
 
-        {canSubmit && <ActionFlow token={token} contract={contract} />}
+        {canSubmit && !deadlinePassed && <ActionFlow token={token} contract={contract} />}
 
         {contract.status === "PENDING_REVIEW" && <PendingReviewScreen />}
 
@@ -180,7 +187,7 @@ export default function SignPage() {
           <SignedSuccessScreen onDownload={handleDownload} isDownloading={isDownloading} />
         )}
 
-        {contract.status === "EXPIRED" && <ExpiredScreen />}
+        {(contract.status === "EXPIRED" || deadlinePassed) && <ExpiredScreen />}
 
         {contract.status === "CANCELLED" && <CancelledScreen />}
 
