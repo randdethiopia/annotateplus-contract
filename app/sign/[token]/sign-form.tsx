@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm, useWatch, type Control } from "react-hook-form";
 import { ArrowRight, Loader2 } from "lucide-react";
@@ -116,6 +117,7 @@ function SigningAs({ control }: { control: Control<WorkerSubmitInput> }) {
 export function SignForm({ token, initialValues, requireNewPhotos = false }: SignFormProps) {
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
   const { mutate: submit, isPending } = useSubmitWorkerContract(token);
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -198,6 +200,11 @@ export function SignForm({ token, initialValues, requireNewPhotos = false }: Sig
         onError: (err) => {
           if (!(err instanceof ApiError)) {
             toast.error("Submission failed. Please try again.");
+            return;
+          }
+          if (err.code === "TOKEN_EXPIRED") {
+            toast.error(SIGN_COPY.linkExpired);
+            queryClient.invalidateQueries({ queryKey: ["worker-contract", token] });
             return;
           }
           if (err.status === 429 && err.retryAfterSeconds) {

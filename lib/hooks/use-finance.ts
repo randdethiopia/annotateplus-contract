@@ -7,7 +7,48 @@ import {
   type FinanceContractsParams,
 } from "@/lib/api/finance.api";
 import type { CreateContractInput } from "@/lib/validations/contract.schema";
-import type { BulkIssueRequestBody, BulkRemindParams } from "@/types/backend";
+import type {
+  BulkIssueRequestBody,
+  BulkRemindParams,
+  ContractListItemDto,
+  ContractStatus,
+  FinanceContractListItemDto,
+  Paginated,
+  RenewContractResponse,
+} from "@/types/backend";
+
+type RenewedRowFields = {
+  contractId: string;
+  status: ContractStatus;
+  expiresAt?: string;
+  reminderCount?: number;
+  lastReminderSentAt?: string;
+  nextReminderAt?: string;
+};
+
+function applyRenewal<T extends RenewedRowFields>(
+  row: T,
+  contractId: string,
+  data: RenewContractResponse
+): T {
+  if (row.contractId !== contractId) return row;
+  return {
+    ...row,
+    status: data.status,
+    expiresAt: data.expiresAt,
+    reminderCount: data.reminderCount,
+    nextReminderAt: data.nextReminderAt,
+    lastReminderSentAt: undefined,
+  };
+}
+
+function patchRenewedPage<T extends RenewedRowFields>(
+  prev: Paginated<T> | undefined,
+  contractId: string,
+  data: RenewContractResponse
+): Paginated<T> | undefined {
+  return prev && { ...prev, items: prev.items.map((row) => applyRenewal(row, contractId, data)) };
+}
 
 export function useFinanceContracts(token: string, params: FinanceContractsParams) {
   const filters = {
@@ -127,6 +168,30 @@ export function useCreateContract(token: string) {
       queryClient.invalidateQueries({ queryKey: ["finance-kpis"] });
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       queryClient.invalidateQueries({ queryKey: ["candidates"] });
+    },
+  });
+}
+
+export function useRenewFinanceContract(token: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (contractId: string) => financeApi.renewContract(token, contractId),
+    retry: 0,
+    onSuccess: (data, contractId) => {
+      queryClient.setQueriesData<Paginated<FinanceContractListItemDto>>(
+        { queryKey: ["finance-contracts"] },
+        (prev) => patchRenewedPage(prev, contractId, data)
+      );
+      queryClient.setQueriesData<Paginated<ContractListItemDto>>(
+        { queryKey: ["reviewer-contracts"] },
+        (prev) => patchRenewedPage(prev, contractId, data)
+      );
+      queryClient.invalidateQueries({ queryKey: ["finance-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["finance-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["reviewer-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["reviewer-contract", contractId] });
+      queryClient.invalidateQueries({ queryKey: ["reviewer-kpis"] });
     },
   });
 }

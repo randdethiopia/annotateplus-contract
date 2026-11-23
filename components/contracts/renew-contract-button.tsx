@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth/auth-context";
 import { describeError } from "@/lib/describe-error";
+import { useRenewFinanceContract } from "@/lib/hooks/use-finance";
 import { useRenewContract } from "@/lib/hooks/use-reviewer";
 import { isRenewable, RENEWAL_DAYS, type RenewableContract } from "@/lib/renew-utils";
 import { cn } from "@/lib/utils";
+import type { RenewContractResponse } from "@/types/backend";
 
 /**
  * The same neutral pill the Remind and Copy Link row actions use. Renewal is
@@ -51,6 +53,8 @@ export function RenewContractButton({
   contract,
   candidateName,
   appearance = "pill",
+  surface = "reviewer",
+  onRenewed,
   className,
 }: {
   /** Any of the three contract DTOs satisfies this structurally. */
@@ -65,12 +69,16 @@ export function RenewContractButton({
    * promoted to the row's main action, "button" suits the dossier card.
    */
   appearance?: "pill" | "primary" | "button";
+  surface?: "reviewer" | "finance";
+  onRenewed?: (data: RenewContractResponse) => void;
   className?: string;
 }) {
   const { token } = useAuth();
   const [open, setOpen] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
-  const { mutate: renew, isPending } = useRenewContract(token ?? "");
+  const reviewerRenewal = useRenewContract(token ?? "");
+  const financeRenewal = useRenewFinanceContract(token ?? "");
+  const { mutate: renew, isPending } = surface === "finance" ? financeRenewal : reviewerRenewal;
 
   if (!isRenewable(contract)) return null;
 
@@ -85,9 +93,10 @@ export function RenewContractButton({
 
   const handleConfirm = () => {
     renew(contract.contractId, {
-      onSuccess: () => {
+      onSuccess: (data) => {
         toast.success(`Contract for ${who} renewed for ${RENEWAL_DAYS} days. SMS dispatched.`);
         setOpen(false);
+        onRenewed?.(data);
       },
       // The dialog stays open on failure so the action can be retried without
       // finding the row again.

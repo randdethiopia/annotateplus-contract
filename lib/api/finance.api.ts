@@ -17,6 +17,7 @@ import type {
   FinanceContractListItemDto,
   Paginated,
   RemindContractResponse,
+  RenewContractResponse,
 } from "@/types/backend";
 import type { CreateContractInput } from "@/lib/validations/contract.schema";
 
@@ -79,6 +80,13 @@ export const financeApi = {
 
   remindContract(token: string, contractId: string): Promise<RemindContractResponse> {
     return api<RemindContractResponse>(`/finance/contracts/${contractId}/remind`, {
+      method: "POST",
+      token,
+    });
+  },
+
+  renewContract(token: string, contractId: string): Promise<RenewContractResponse> {
+    return api<RenewContractResponse>(`/finance/contracts/${contractId}/renew`, {
       method: "POST",
       token,
     });

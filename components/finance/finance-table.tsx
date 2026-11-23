@@ -4,12 +4,14 @@ import { useState } from "react";
 import { Check, FileDown, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { RemindButton } from "@/components/contracts/remind-button";
+import { RenewContractButton } from "@/components/contracts/renew-contract-button";
 import { StatusDotLabel } from "@/components/system/status-badge";
 import { SURFACE_CARD } from "@/components/system/surface";
 import { formatAgreementDate } from "@/lib/format-date";
 import { getInitials } from "@/lib/initials";
 import { normalizePhoneToLocal } from "@/lib/phone";
 import { isRemindable } from "@/lib/reminder-utils";
+import { isRenewable } from "@/lib/renew-utils";
 import { cn } from "@/lib/utils";
 import type { FinanceContractListItemDto } from "@/types/backend";
 
@@ -156,14 +158,23 @@ function RowActions({
   // nudge. Copy Link is only offered when the list payload actually carries the
   // link, and `isRemindable` is what RemindButton itself gates on — so this
   // still collapses to nothing rather than an empty flex item.
+  const showRenew = isRenewable(item);
   const showCopyLink =
-    (item.status === "INVITED" || item.status === "DRAFT") && !!item.inviteLink;
-  const showRemind = isRemindable(item.status);
+    !showRenew && (item.status === "INVITED" || item.status === "DRAFT") && !!item.inviteLink;
+  const showRemind = !showRenew && isRemindable(item.status);
 
-  if (!showCopyLink && !showRemind) return null;
+  if (!showRenew && !showCopyLink && !showRemind) return null;
 
   return (
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+      {showRenew && (
+        <RenewContractButton
+          contract={item}
+          surface="finance"
+          appearance="pill"
+          candidateName={item.workerName}
+        />
+      )}
       {showCopyLink && <CopyLinkButton item={item} />}
       {showRemind && <RemindButton contract={item} surface="finance" />}
     </div>

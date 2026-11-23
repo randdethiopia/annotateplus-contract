@@ -41,7 +41,7 @@ import { useClampPage } from "@/lib/hooks/use-clamp-page";
 import { ApiError } from "@/lib/api/client";
 import { describeError } from "@/lib/describe-error";
 import { cn } from "@/lib/utils";
-import type { FinanceContractListItemDto } from "@/types/backend";
+import type { FinanceContractListItemDto, RenewContractResponse } from "@/types/backend";
 
 const EXPORT_SIGNED_TOAST_ID = "finance-export-signed";
 const NOVEMBER_ONWARDS_FROM = "2026-11-01";
@@ -354,11 +354,23 @@ export default function FinancePage() {
     { value: "PENDING_REVIEW", label: "Pending Review", count: kpis.pendingReview },
     { value: "INVITED", label: "Invited", active: !reminderEligible && status === "INVITED" },
     { value: "RESUBMISSION_REQUIRED", label: "Resubmissions" },
-    // Visibility only — renewal runs through the reviewer endpoint, so the
-    // action lives on /hr. No count: an extra limit:1 fan-out isn't earned on a
-    // surface that can't act on the rows.
     { value: "EXPIRED", label: statusFilterLabel("EXPIRED") },
   ];
+
+  function handleRenewed(data: RenewContractResponse) {
+    setSelected((prev) =>
+      prev && prev.contractId === data.contractId
+        ? {
+            ...prev,
+            status: data.status,
+            expiresAt: data.expiresAt,
+            reminderCount: data.reminderCount,
+            nextReminderAt: data.nextReminderAt,
+            lastReminderSentAt: undefined,
+          }
+        : prev
+    );
+  }
 
   function handleExportPayroll() {
     exportPayroll(undefined, {
@@ -552,6 +564,7 @@ export default function FinancePage() {
       <FinanceDetailSheet
         contract={liveSelected}
         onOpenChange={(open) => !open && setSelected(null)}
+        onRenewed={handleRenewed}
       />
     </div>
   );
